@@ -26,6 +26,12 @@ def compare_parties(request):
     conn = sqlite3.connect(DB_PATH)
     cur = conn.cursor()
 
+    # 전체 정당 평균실적 가져오기
+    cur.execute("SELECT 정당, 평균실적 FROM party_score ORDER BY 평균실적 DESC")
+    all_parties = cur.fetchall()
+    rank_dict = {party: idx + 1 for idx, (party, _) in enumerate(all_parties)}
+
+    # 비교 대상 정당 정보 가져오기
     query = f"""
         SELECT 정당, {', '.join(COMPARISON_FIELDS)}
         FROM party_statistics_kr
@@ -60,6 +66,8 @@ def compare_parties(request):
 
     return JsonResponse({
         "비교항목": comparison,
-        "정당1": party1,
-        "정당2": party2
+        "순위": {
+            party1: rank_dict.get(party1, "알 수 없음"),
+            party2: rank_dict.get(party2, "알 수 없음")
+        }
     })

@@ -16,6 +16,13 @@ def compare_members(request):
 
     conn = sqlite3.connect(DB_PATH)
     cur = conn.cursor()
+
+    # 전체 의원 총점 기준 순위 계산
+    cur.execute("SELECT HG_NM, 총점 FROM performance_score ORDER BY 총점 DESC")
+    all_members = cur.fetchall()
+    rank_dict = {name: idx + 1 for idx, (name, _) in enumerate(all_members)}
+
+    # 비교 대상 두 명 가져오기
     cur.execute(f"""
         SELECT HG_NM, {', '.join(COLUMNS)}
         FROM performance_score
@@ -51,5 +58,9 @@ def compare_members(request):
 
     return JsonResponse({
         "비교항목": COLUMNS,
-        "의원비교": comparison
+        "의원비교": comparison,
+        "순위": {
+            member1: rank_dict.get(member1, "알 수 없음"),
+            member2: rank_dict.get(member2, "알 수 없음")
+        }
     })
