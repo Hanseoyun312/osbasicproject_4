@@ -1,4 +1,4 @@
-# backend/chatbot/views.py (최적화 버전)
+# backend/chatbot/views.py (개선 버전)
 import sqlite3
 import requests
 import os
@@ -16,6 +16,7 @@ BASE_DIR = os.path.dirname(__file__)
 RANKING_MEMBERS_DB = os.path.join(BASE_DIR, '..', 'ranking_members.db')
 RANKING_PARTIES_DB = os.path.join(BASE_DIR, '..', 'ranking_parties.db')
 
+# 모든 순위 관련 필드 자동 매핑
 MEMBER_FIELDS = []
 PARTY_FIELDS = []
 
@@ -30,7 +31,7 @@ def load_all_fields():
             cursor1 = conn.execute("PRAGMA table_info(party_score)")
             cursor2 = conn.execute("PRAGMA table_info(party_statistics_kr)")
             PARTY_FIELDS = [row[1] for row in cursor1.fetchall()] + [row[1] for row in cursor2.fetchall()]
-    except Exception:
+    except Exception as e:
         MEMBER_FIELDS = ["HG_NM", "POLY_NM"]
         PARTY_FIELDS = ["정당"]
 
@@ -38,6 +39,7 @@ def load_all_fields():
 load_all_fields()
 
 
+# 정당 이름 정규화
 def normalize_party_name(user_input):
     party_map = {
         "국힘": "국민의힘",
@@ -45,8 +47,8 @@ def normalize_party_name(user_input):
         "국힘당": "국민의힘",
         "민주당": "더불어민주당",
         "더민주": "더불어민주당",
-        "더불어 민주당": "더불어민주당",
         "더민주당": "더불어민주당",
+        "더불어 민주당": "더불어민주당",
         "여당": "더불어민주당",
         "조국당": "조국혁신당",
         "혁신당": "조국혁신당",
@@ -58,6 +60,7 @@ def normalize_party_name(user_input):
     return None
 
 
+# Fallback 보강
 def fallback_to_table(user_input):
     if "의원수" in user_input and "정당" in user_input:
         return ("party_score", ["정당", "의원수", "의원수_순위"])
@@ -66,8 +69,16 @@ def fallback_to_table(user_input):
     return None
 
 
-def filter_rows(rows, keyword):
-    return [row for row in rows if keyword in row.get("HG_NM", "") or keyword in row.get("정당", "")]
+# 필터링 로직 (이름이 있는 경우 필터링)
+def filter_rows_by_name(user_input, conn):
+    conn.row_factory = sqlite3.Row
+    cur = conn.cursor()
+    for name_field in ["HG_NM"]:
+        cur.execute(f"SELECT * FROM ranking_members WHERE {name_field} LIKE ?", (f"%{user_input}%",))
+        results = cur.fetchall()
+        if results:
+            return [dict(row) for row in results]
+    return []
 
 
 def get_filtered_data(user_input):
@@ -76,29 +87,11 @@ def get_filtered_data(user_input):
         matched = False
         norm_party = normalize_party_name(user_input)
 
-        name_hint = None
-        for row in MEMBER_FIELDS:
-            if row in user_input:
-                name_hint = row
-                break
-
-        # 이름 키워드 추출
-        name_kw = None
-        for token in user_input.split():
-            if len(token) >= 2 and any(token in name for name in MEMBER_FIELDS):
-                name_kw = token
-                break
-
-        if any(col in user_input for col in MEMBER_FIELDS) or name_kw:
+        if any(name in user_input for name in MEMBER_FIELDS + ["의원", "출석", "청원", "기권", "법안"]):
             matched = True
             with sqlite3.connect(RANKING_MEMBERS_DB) as conn:
-                conn.row_factory = sqlite3.Row
-                cur = conn.cursor()
-                cur.execute("SELECT * FROM ranking_members")
-                rows = [dict(row) for row in cur.fetchall()]
-                if name_kw:
-                    rows = filter_rows(rows, name_kw)
-                data["ranking_members"] = rows
+                results = filter_rows_by_name(user_input, conn)
+                data["ranking_members"] = results
 
         if any(col in user_input for col in PARTY_FIELDS) or norm_party:
             matched = True
@@ -191,7 +184,7 @@ def chatbot_api(request):
             }
 
             payload = {
-                "model": "meta-llama/llama-3-70b-instruct",
+                "model": "mixtral-8x7b-32768",
                 "messages": [
                     {"role": "system", "content": system_prompt},
                     {"role": "user", "content": prompt}
@@ -199,7 +192,13 @@ def chatbot_api(request):
             }
 
             response = requests.post("https://api.groq.com/openai/v1/chat/completions", headers=headers, json=payload)
-            reply = response.json()["choices"][0]["message"]["content"]
+            response_data = response.json()
+
+            if "choices" not in response_data:
+                error_msg = response_data.get("error", {}).get("message", "Groq 응답 오류")
+                return JsonResponse({"response": f"[Groq 오류] {error_msg}"})
+
+            reply = response_data["choices"][0]["message"]["content"]
             reply = reply.replace('\n', '<br>')
 
             return JsonResponse({"response": reply})
