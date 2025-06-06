@@ -1,97 +1,112 @@
 import os
-import json
 import sqlite3
+import re
+import json
 import requests
+
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.shortcuts import render
 
-# DB 경로 설정
-BASE_DIR = os.path.dirname(__file__)
+# OpenRouter API 예시 (키는 환경변수 등록)
+OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY")
+
+# DB 경로 (절대경로 추천, 아니면 아래처럼 상대경로 조정)
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 RANKING_MEMBERS_DB = os.path.join(BASE_DIR, '..', 'ranking_members.db')
 RANKING_PARTIES_DB = os.path.join(BASE_DIR, '..', 'ranking_parties.db')
 
-# API 키: Render에서는 .env 없이 환경 변수로 자동 로드됨
-OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY")
+# 의원/정당 이름 추출용 리스트 생성 (최초 1회만 로딩)
+def get_all_names(db_path, column):
+    with sqlite3.connect(db_path) as conn:
+        cur = conn.cursor()
+        cur.execute(f"SELECT DISTINCT {column} FROM ranking_members" if 'member' in db_path else f"SELECT DISTINCT {column} FROM party_score")
+        return [row[0] for row in cur.fetchall() if row[0]]
 
-# 데이터 필드 로드
-MEMBER_FIELDS, PARTY_FIELDS = [], []
+ALL_MEMBER_NAMES = get_all_names(RANKING_MEMBERS_DB, 'HG_NM')
+ALL_PARTY_NAMES = get_all_names(RANKING_PARTIES_DB, '정당')
 
-def load_all_fields():
-    global MEMBER_FIELDS, PARTY_FIELDS
-    try:
+# 이름/정당 비표준 표현 정규화(오타 변환)
+PARTY_ALIASES = {
+    "국힘": "국민의힘", 
+    "국민의 힘": "국민의힘", 
+    "국힘당": "국민의힘",
+    "민주당": "더불어민주당", 
+    "더민주": "더불어민주당", 
+    "더민주당": "더불어민주당",
+    "더불어 민주당": "더불어민주당",
+    "여당": "더불어민주당", 
+    "조국당": "조국혁신당", 
+    "혁신당": "조국혁신당", 
+    "기본당": "기본소득당"
+}
+
+def normalize_party_name(name):
+    for alias, true_name in PARTY_ALIASES.items():
+        if alias in name:
+            return true_name
+    return name
+
+# 질문에서 이름/정당 자동 추출
+def extract_keywords(user_input):
+    # 정당명 먼저
+    for p in sorted(ALL_PARTY_NAMES + list(PARTY_ALIASES.keys()), key=len, reverse=True):
+        if p and p in user_input:
+            norm_p = normalize_party_name(p)
+            return ('party', norm_p)
+    # 의원명
+    for n in sorted(ALL_MEMBER_NAMES, key=len, reverse=True):
+        if n and n in user_input:
+            return ('member', n)
+    return (None, None)
+
+# DB에서 row 추출
+def get_row_from_db(mode, keyword):
+    if mode == 'member':
         with sqlite3.connect(RANKING_MEMBERS_DB) as conn:
-            cursor = conn.execute("PRAGMA table_info(ranking_members)")
-            MEMBER_FIELDS = [row[1] for row in cursor.fetchall()]
-
+            conn.row_factory = sqlite3.Row
+            cur = conn.cursor()
+            cur.execute("SELECT * FROM ranking_members WHERE HG_NM LIKE ?", ('%' + keyword + '%',))
+            row = cur.fetchone()
+            return dict(row) if row else None
+    elif mode == 'party':
+        # party_score, party_statistics_kr 모두 조회
         with sqlite3.connect(RANKING_PARTIES_DB) as conn:
-            cursor1 = conn.execute("PRAGMA table_info(party_score)")
-            cursor2 = conn.execute("PRAGMA table_info(party_statistics_kr)")
-            PARTY_FIELDS = [row[1] for row in cursor1.fetchall()] + [row[1] for row in cursor2.fetchall()]
-    except:
-        MEMBER_FIELDS = ["HG_NM", "POLY_NM"]
-        PARTY_FIELDS = ["정당"]
+            conn.row_factory = sqlite3.Row
+            cur = conn.cursor()
+            cur.execute("SELECT * FROM party_score WHERE 정당 LIKE ?", ('%' + keyword + '%',))
+            row1 = cur.fetchone()
+            cur.execute("SELECT * FROM party_statistics_kr WHERE 정당 LIKE ?", ('%' + keyword + '%',))
+            row2 = cur.fetchone()
+            return {'party_score': dict(row1) if row1 else None, 'party_stats': dict(row2) if row2 else None}
+    else:
+        return None
 
-load_all_fields()
-
-# 정당명 정규화
-def normalize_party_name(text):
-    party_map = {
-        "국힘": "국민의힘", "국민의 힘": "국민의힘", "국힘당": "국민의힘",
-        "민주당": "더불어민주당", "더민주": "더불어민주당", "여당": "더불어민주당",
-        "조국당": "조국혁신당", "혁신당": "조국혁신당", "기본당": "기본소득당"
-    }
-    for key, value in party_map.items():
-        if key in text:
-            return value
-    return None
-
-# DB에서 필요한 데이터 필터링
-def get_filtered_data(user_input):
-    result = {}
-    try:
-        match = False
-        norm_party = normalize_party_name(user_input)
-
-        if any(field in user_input for field in MEMBER_FIELDS):
-            with sqlite3.connect(RANKING_MEMBERS_DB) as conn:
-                conn.row_factory = sqlite3.Row
-                cur = conn.cursor()
-                cur.execute("SELECT * FROM ranking_members")
-                result["ranking_members"] = [dict(row) for row in cur.fetchall()]
-                match = True
-
-        if any(field in user_input for field in PARTY_FIELDS) or norm_party:
-            with sqlite3.connect(RANKING_PARTIES_DB) as conn:
-                conn.row_factory = sqlite3.Row
-                cur = conn.cursor()
-                cur.execute("SELECT * FROM party_score")
-                result["party_score"] = [dict(row) for row in cur.fetchall()]
-                cur.execute("SELECT * FROM party_statistics_kr")
-                result["party_statistics_kr"] = [dict(row) for row in cur.fetchall()]
-                match = True
-
-        return result if match else {}
-    except Exception as e:
-        return {"error": str(e)}
-
-# 챗봇 API
+# 메인 챗봇 API
 @csrf_exempt
 def chatbot_api(request):
     if request.method == "POST":
         try:
-            body = json.loads(request.body)
-            user_input = body.get("message", "")
-            db_data = get_filtered_data(user_input)
+            req_data = json.loads(request.body)
+            user_input = req_data.get("message", "")
 
-            if "error" in db_data or not db_data:
-                return JsonResponse({"response": "관련 데이터가 없습니다. 다른 질문을 부탁드립니다."})
+            # 핵심: 질문에서 키워드 추출
+            mode, keyword = extract_keywords(user_input)
 
+            if not mode or not keyword:
+                return JsonResponse({"response": "의원 또는 정당 이름을 조금 더 정확히 입력해 주세요."})
+
+            # 해당 row만 추출
+            db_data = get_row_from_db(mode, keyword)
+            if not db_data or (isinstance(db_data, dict) and not any(db_data.values())):
+                return JsonResponse({"response": "DB에 일치하는 정보가 없습니다."})
+
+            # 프롬프트 구성
             system_prompt = """
 너는 대한민국 국회의원과 정당의 실적 데이터를 분석하는 전문가 챗봇이야. 사용자 질문에 대해 정확하고 신뢰할 수 있는 데이터를 바탕으로 자연스럽고 명확한 한국어로 답변해야 해.
 
 반드시 지켜야 할 지침:
-1. DB에 존재하는 실제 데이터만 기반으로 답변해. 절대로 만들어내거나 과장하지 마.
+1. DB에 존재하는 실제 데이터만 기반으로 답변해. 만들어내거나 과장하지 마.
     - 국회의원을 묻는 질문엔 'ranking_members' 테이블을 기준으로 삼아.
     - 정당을 묻는 질문엔 'party_score' 또는 'party_statistics_kr' 테이블을 기준으로 삼아.
     - 정당의 '평균실적', '가중점수', '의원수' 등은 'party_score' 테이블을 참고해.
@@ -126,39 +141,38 @@ def chatbot_api(request):
     - '더불어민주당 의원은 총 몇 명이야?' → '더불어민주당' 정당의 '의원수' 값을 알려줘. 
 
 """
-            user_prompt = f"""
-[질문]: {user_input}
-[관련 데이터]: {json.dumps(db_data, ensure_ascii=False)}
+
+            prompt = f"""
+[질문 관련 데이터]
+{json.dumps(db_data, ensure_ascii=False, indent=2)}
+
+질문: {user_input}
+답변:
 """
 
+            # OpenRouter API 호출 (여기서 최신 무료 모델명 사용)
             headers = {
                 "Authorization": f"Bearer {OPENROUTER_API_KEY}",
-                "HTTP-Referer": "https://yourdomain.com",  # 필요 시 수정
                 "Content-Type": "application/json"
             }
-
             payload = {
-                "model": "gpt-3.5-turbo",
+                "model": "mistralai/mistral-large",   # 추천: 무료/안정적, 바뀌면 최신 무료모델로 변경
                 "messages": [
                     {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": user_prompt}
+                    {"role": "user", "content": prompt}
                 ]
             }
-
-            response = requests.post("https://openrouter.ai/api/v1/chat/completions", headers=headers, json=payload)
+            response = requests.post("https://openrouter.ai/api/v1/chat/completions", headers=headers, json=payload, timeout=20)
             res_json = response.json()
-
-            if "choices" not in res_json:
+            if "choices" in res_json:
+                reply = res_json["choices"][0]["message"]["content"]
+                return JsonResponse({"response": reply.replace('\n', '<br>')})
+            else:
                 return JsonResponse({"response": f"[오류] {res_json}"})
 
-            reply = res_json["choices"][0]["message"]["content"].replace('\n', '<br>')
-            return JsonResponse({"response": reply})
-
         except Exception as e:
-            return JsonResponse({"response": f"[예외 발생] {str(e)}"})
-
+            return JsonResponse({"response": f"오류: {str(e)}"})
     return JsonResponse({"response": "POST 요청을 보내주세요."})
 
-# 테스트용 HTML 렌더링
 def chatbot_page(request):
     return render(request, "chatbot/test.html")
