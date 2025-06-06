@@ -1,11 +1,9 @@
 services:
   - type: web
-    name: osbasic-backend
+    name: baekilha
     env: python
-    rootDir: . 
-    buildCommand: "pip install -r requirements.txt"
-    startCommand: "gunicorn config.wsgi:application --bind 0.0.0.0:$PORT"
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn config.wsgi:application --bind 0.0.0.0:$PORT
     envVars:
-      - key: DATABASE_URL
-        value: sqlite:///performance.db
-    plan: free
+      - key: DJANGO_SETTINGS_MODULE
+        value: config.settings
