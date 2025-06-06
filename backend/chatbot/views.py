@@ -70,38 +70,33 @@ def fallback_to_table(user_input):
 def get_filtered_data(user_input):
     data = {}
     try:
-        matched = False
-
         norm_party = normalize_party_name(user_input)
 
-        if any(col in user_input for col in MEMBER_FIELDS):
-            matched = True
+        # 의원 이름 추출
+        name_match = re.search(r"([가-힣]{2,4})", user_input)
+        target_name = name_match.group(1) if name_match else None
+
+        if "의원" in user_input and target_name:
             with sqlite3.connect(RANKING_MEMBERS_DB) as conn:
                 conn.row_factory = sqlite3.Row
                 cur = conn.cursor()
-                cur.execute("SELECT * FROM ranking_members")
+                cur.execute("SELECT * FROM ranking_members WHERE HG_NM LIKE ?", (f"%{target_name}%",))
                 data["ranking_members"] = [dict(row) for row in cur.fetchall()]
 
-        if any(col in user_input for col in PARTY_FIELDS) or norm_party:
-            matched = True
+        if "정당" in user_input or norm_party:
             with sqlite3.connect(RANKING_PARTIES_DB) as conn:
                 conn.row_factory = sqlite3.Row
                 cur = conn.cursor()
-                cur.execute("SELECT * FROM party_score")
-                data["party_score"] = [dict(row) for row in cur.fetchall()]
-                cur.execute("SELECT * FROM party_statistics_kr")
-                data["party_statistics_kr"] = [dict(row) for row in cur.fetchall()]
-
-        if not matched:
-            fallback = fallback_to_table(user_input)
-            if fallback:
-                table, columns = fallback
-                target_db = RANKING_MEMBERS_DB if table == "ranking_members" else RANKING_PARTIES_DB
-                with sqlite3.connect(target_db) as conn:
-                    conn.row_factory = sqlite3.Row
-                    cur = conn.cursor()
-                    cur.execute(f"SELECT {', '.join(columns)} FROM {table}")
-                    data[table] = [dict(row) for row in cur.fetchall()]
+                if norm_party:
+                    cur.execute("SELECT * FROM party_score WHERE 정당 LIKE ?", (f"%{norm_party}%",))
+                    data["party_score"] = [dict(row) for row in cur.fetchall()]
+                    cur.execute("SELECT * FROM party_statistics_kr WHERE 정당 LIKE ?", (f"%{norm_party}%",))
+                    data["party_statistics_kr"] = [dict(row) for row in cur.fetchall()]
+                else:
+                    cur.execute("SELECT * FROM party_score")
+                    data["party_score"] = [dict(row) for row in cur.fetchall()]
+                    cur.execute("SELECT * FROM party_statistics_kr")
+                    data["party_statistics_kr"] = [dict(row) for row in cur.fetchall()]
 
         return data
     except Exception as e:
