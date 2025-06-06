@@ -24,7 +24,7 @@ urlpatterns = [
     path('compare_members/', include('compare_members.urls')),
     path('compare_parties/', include('compare_parties.urls')),
     path('searchapi/', include('searchapi.urls')),
-    path("api/", include("chatbot.urls")),
+    path("chatbot/", include("chatbot.urls")),
     path('ranking/members/', get_member_rankings),
     path('ranking/parties/score/', get_party_score),
     path('ranking/parties/stats/', get_party_stats),
