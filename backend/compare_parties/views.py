@@ -27,15 +27,15 @@ def compare_parties(request):
     cur = conn.cursor()
 
     # 전체 정당 평균실적 가져오기
-    cur.execute("SELECT POLY_NM, 평균실적 FROM party_score ORDER BY 평균실적 DESC")
+    cur.execute("SELECT 정당, 평균실적 FROM party_score ORDER BY 평균실적 DESC")
     all_parties = cur.fetchall()
     rank_dict = {party: idx + 1 for idx, (party, _) in enumerate(all_parties)}
 
     # 비교 대상 정당 정보 가져오기
     query = f"""
-        SELECT POLY_NM, {', '.join(COMPARISON_FIELDS)}
+        SELECT 정당, {', '.join(COMPARISON_FIELDS)}
         FROM party_statistics_kr
-        WHERE POLY_NM = ? OR POLY_NM = ?
+        WHERE 정당 = ? OR 정당 = ?
     """
     cur.execute(query, (party1, party2))
     rows = cur.fetchall()
