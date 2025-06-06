@@ -118,7 +118,9 @@ def chatbot_api(request):
             if "error" in db_data or not db_data:
                 return JsonResponse({"response": "관련 데이터가 없습니다. 다른 질문을 부탁드립니다."})
 
-            system_prompt = """
+            프롬프트
+
+system_prompt = """
 너는 대한민국 국회의원과 정당의 실적 데이터를 분석하는 전문가 챗봇이야. 사용자 질문에 대해 정확하고 신뢰할 수 있는 데이터를 바탕으로 자연스럽고 명확한 한국어로 답변해야 해.
 
 반드시 지켜야 할 지침:
@@ -180,10 +182,16 @@ def chatbot_api(request):
             }
 
             response = requests.post("https://api.groq.com/openai/v1/chat/completions", headers=headers, json=payload)
-            reply = response.json()["choices"][0]["message"]["content"]
-            reply = reply.replace('\n', '<br>')
 
-            return JsonResponse({"response": reply})
+            try:
+                res_json = response.json()
+                if "choices" not in res_json:
+                    return JsonResponse({"response": f"[Groq 오류] 응답 구조 이상: {res_json}"})
+                reply = res_json["choices"][0]["message"]["content"]
+                reply = reply.replace('\n', '<br>')
+                return JsonResponse({"response": reply})
+            except Exception as e:
+                return JsonResponse({"response": f"[예외 발생] {str(e)}"})
 
         except Exception as e:
             return JsonResponse({"response": f"오류: {str(e)}"})
