@@ -1,4 +1,4 @@
-# backend/chatbot/views.py (개선 버전)
+# backend/chatbot/views.py (업그레이드 버전)
 import sqlite3
 import requests
 import os
@@ -16,10 +16,8 @@ BASE_DIR = os.path.dirname(__file__)
 RANKING_MEMBERS_DB = os.path.join(BASE_DIR, '..', 'ranking_members.db')
 RANKING_PARTIES_DB = os.path.join(BASE_DIR, '..', 'ranking_parties.db')
 
-# 모든 순위 관련 필드 자동 매핑
 MEMBER_FIELDS = []
 PARTY_FIELDS = []
-
 
 def load_all_fields():
     global MEMBER_FIELDS, PARTY_FIELDS
@@ -31,15 +29,12 @@ def load_all_fields():
             cursor1 = conn.execute("PRAGMA table_info(party_score)")
             cursor2 = conn.execute("PRAGMA table_info(party_statistics_kr)")
             PARTY_FIELDS = [row[1] for row in cursor1.fetchall()] + [row[1] for row in cursor2.fetchall()]
-    except Exception as e:
+    except Exception:
         MEMBER_FIELDS = ["HG_NM", "POLY_NM"]
         PARTY_FIELDS = ["정당"]
 
-
 load_all_fields()
 
-
-# 정당 이름 정규화
 def normalize_party_name(user_input):
     party_map = {
         "국힘": "국민의힘",
@@ -48,7 +43,6 @@ def normalize_party_name(user_input):
         "민주당": "더불어민주당",
         "더민주": "더불어민주당",
         "더민주당": "더불어민주당",
-        "더불어 민주당": "더불어민주당",
         "여당": "더불어민주당",
         "조국당": "조국혁신당",
         "혁신당": "조국혁신당",
@@ -59,8 +53,6 @@ def normalize_party_name(user_input):
             return v
     return None
 
-
-# Fallback 보강
 def fallback_to_table(user_input):
     if "의원수" in user_input and "정당" in user_input:
         return ("party_score", ["정당", "의원수", "의원수_순위"])
@@ -68,40 +60,37 @@ def fallback_to_table(user_input):
         return ("ranking_members", ["HG_NM", "POLY_NM", "기권_무효", "기권_무효_순위"])
     return None
 
-
-# 필터링 로직 (이름이 있는 경우 필터링)
-def filter_rows_by_name(user_input, conn):
-    conn.row_factory = sqlite3.Row
-    cur = conn.cursor()
-    for name_field in ["HG_NM"]:
-        cur.execute(f"SELECT * FROM ranking_members WHERE {name_field} LIKE ?", (f"%{user_input}%",))
-        results = cur.fetchall()
-        if results:
-            return [dict(row) for row in results]
-    return []
-
-
 def get_filtered_data(user_input):
     data = {}
     try:
         matched = False
         norm_party = normalize_party_name(user_input)
 
-        if any(name in user_input for name in MEMBER_FIELDS + ["의원", "출석", "청원", "기권", "법안"]):
+        if any(col in user_input for col in MEMBER_FIELDS):
             matched = True
             with sqlite3.connect(RANKING_MEMBERS_DB) as conn:
-                results = filter_rows_by_name(user_input, conn)
-                data["ranking_members"] = results
+                conn.row_factory = sqlite3.Row
+                cur = conn.cursor()
+                cur.execute("SELECT * FROM ranking_members WHERE HG_NM LIKE ?", (f"%{user_input}%",))
+                rows = cur.fetchall()
+                if rows:
+                    data["ranking_members"] = [dict(row) for row in rows]
 
         if any(col in user_input for col in PARTY_FIELDS) or norm_party:
             matched = True
             with sqlite3.connect(RANKING_PARTIES_DB) as conn:
                 conn.row_factory = sqlite3.Row
                 cur = conn.cursor()
-                cur.execute("SELECT * FROM party_score")
-                data["party_score"] = [dict(row) for row in cur.fetchall()]
-                cur.execute("SELECT * FROM party_statistics_kr")
-                data["party_statistics_kr"] = [dict(row) for row in cur.fetchall()]
+                if norm_party:
+                    cur.execute("SELECT * FROM party_score WHERE 정당 = ?", (norm_party,))
+                    data["party_score"] = [dict(row) for row in cur.fetchall()]
+                    cur.execute("SELECT * FROM party_statistics_kr WHERE 정당 = ?", (norm_party,))
+                    data["party_statistics_kr"] = [dict(row) for row in cur.fetchall()]
+                else:
+                    cur.execute("SELECT * FROM party_score")
+                    data["party_score"] = [dict(row) for row in cur.fetchall()]
+                    cur.execute("SELECT * FROM party_statistics_kr")
+                    data["party_statistics_kr"] = [dict(row) for row in cur.fetchall()]
 
         if not matched:
             fallback = fallback_to_table(user_input)
@@ -118,15 +107,14 @@ def get_filtered_data(user_input):
     except Exception as e:
         return {"error": str(e)}
 
-
 @csrf_exempt
 def chatbot_api(request):
     if request.method == "POST":
         try:
             data = json.loads(request.body)
             user_input = data.get("message", "")
-
             db_data = get_filtered_data(user_input)
+
             if "error" in db_data or not db_data:
                 return JsonResponse({"response": "관련 데이터가 없습니다. 다른 질문을 부탁드립니다."})
 
@@ -184,7 +172,7 @@ def chatbot_api(request):
             }
 
             payload = {
-                "model": "mixtral-8x7b-32768",
+                "model": "meta-llama/llama-3-8b-instruct",
                 "messages": [
                     {"role": "system", "content": system_prompt},
                     {"role": "user", "content": prompt}
@@ -192,13 +180,12 @@ def chatbot_api(request):
             }
 
             response = requests.post("https://api.groq.com/openai/v1/chat/completions", headers=headers, json=payload)
-            response_data = response.json()
+            reply_data = response.json()
 
-            if "choices" not in response_data:
-                error_msg = response_data.get("error", {}).get("message", "Groq 응답 오류")
-                return JsonResponse({"response": f"[Groq 오류] {error_msg}"})
+            if "choices" not in reply_data:
+                return JsonResponse({"response": f"[Groq 오류] 응답 구조 이상: {reply_data}"})
 
-            reply = response_data["choices"][0]["message"]["content"]
+            reply = reply_data["choices"][0]["message"]["content"]
             reply = reply.replace('\n', '<br>')
 
             return JsonResponse({"response": reply})
@@ -207,7 +194,6 @@ def chatbot_api(request):
             return JsonResponse({"response": f"오류: {str(e)}"})
 
     return JsonResponse({"response": "POST 요청을 보내주세요."})
-
 
 def chatbot_page(request):
     return render(request, "chatbot/test.html")
