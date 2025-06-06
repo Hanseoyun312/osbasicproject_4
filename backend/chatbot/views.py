@@ -1,18 +1,124 @@
-import os
+# backend/chatbot/views.py 중간 수정본
 import sqlite3
-import openai
-from django.views.decorators.csrf import csrf_exempt
+import requests
+import os
+from dotenv import load_dotenv
 from django.http import JsonResponse
+from django.views.decorators.csrf import csrf_exempt
 from django.shortcuts import render
 import json
 
-# 절대경로로 DB 연결 (배포 환경도 고려)
-BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-MEMBER_DB = os.path.join(BASE_DIR, "ranking_members.db")
-PARTY_DB = os.path.join(BASE_DIR, "ranking_parties.db")
+load_dotenv()
 
-OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY")
-SYSTEM_PROMPT = """
+GROQ_API_KEY = os.getenv("GROQ_API_KEY")
+
+BASE_DIR = os.path.dirname(__file__)
+RANKING_MEMBERS_DB = os.path.join(BASE_DIR, '..', 'ranking_members.db')
+RANKING_PARTIES_DB = os.path.join(BASE_DIR, '..', 'ranking_parties.db')
+
+# 모든 순위 관련 필드 자동 매핑
+MEMBER_FIELDS = []
+PARTY_FIELDS = []
+
+def load_all_fields():
+    global MEMBER_FIELDS, PARTY_FIELDS
+    try:
+        with sqlite3.connect(RANKING_MEMBERS_DB) as conn:
+            cursor = conn.execute("PRAGMA table_info(ranking_members)")
+            MEMBER_FIELDS = [row[1] for row in cursor.fetchall() if row[1] != '']
+        with sqlite3.connect(RANKING_PARTIES_DB) as conn:
+            cursor1 = conn.execute("PRAGMA table_info(party_score)")
+            cursor2 = conn.execute("PRAGMA table_info(party_statistics_kr)")
+            PARTY_FIELDS = [row[1] for row in cursor1.fetchall()] + [row[1] for row in cursor2.fetchall()]
+    except Exception as e:
+        MEMBER_FIELDS = ["HG_NM", "POLY_NM"]
+        PARTY_FIELDS = ["정당"]
+
+load_all_fields()
+
+# 정당 이름 정규화
+
+def normalize_party_name(user_input):
+    party_map = {
+        "국힘": "국민의힘",
+        "국민의 힘": "국민의힘",
+        "국힘당": "국민의힘",
+        "민주당": "더불어민주당",
+        "더민주": "더불어민주당",
+        "더민주당": "더불어민주당",
+        "여당": "더불어민주당",
+        "조국당": "조국혁신당",
+        "혁신당": "조국혁신당",
+        "기본당": "기본소득당"
+    }
+    for k, v in party_map.items():
+        if k in user_input:
+            return v
+    return None
+
+# fallback 보강
+
+def fallback_to_table(user_input):
+    if "의원수" in user_input and "정당" in user_input:
+        return ("party_score", ["정당", "의원수", "의원수_순위"])
+    if "기권" in user_input and "의원" in user_input:
+        return ("ranking_members", ["HG_NM", "POLY_NM", "기권_무효", "기권_무효_순위"])
+    return None
+
+# 동적 매핑 기반 데이터 검색
+
+def get_filtered_data(user_input):
+    data = {}
+    try:
+        matched = False
+
+        norm_party = normalize_party_name(user_input)
+
+        if any(col in user_input for col in MEMBER_FIELDS):
+            matched = True
+            with sqlite3.connect(RANKING_MEMBERS_DB) as conn:
+                conn.row_factory = sqlite3.Row
+                cur = conn.cursor()
+                cur.execute("SELECT * FROM ranking_members")
+                data["ranking_members"] = [dict(row) for row in cur.fetchall()]
+
+        if any(col in user_input for col in PARTY_FIELDS) or norm_party:
+            matched = True
+            with sqlite3.connect(RANKING_PARTIES_DB) as conn:
+                conn.row_factory = sqlite3.Row
+                cur = conn.cursor()
+                cur.execute("SELECT * FROM party_score")
+                data["party_score"] = [dict(row) for row in cur.fetchall()]
+                cur.execute("SELECT * FROM party_statistics_kr")
+                data["party_statistics_kr"] = [dict(row) for row in cur.fetchall()]
+
+        if not matched:
+            fallback = fallback_to_table(user_input)
+            if fallback:
+                table, columns = fallback
+                target_db = RANKING_MEMBERS_DB if table == "ranking_members" else RANKING_PARTIES_DB
+                with sqlite3.connect(target_db) as conn:
+                    conn.row_factory = sqlite3.Row
+                    cur = conn.cursor()
+                    cur.execute(f"SELECT {', '.join(columns)} FROM {table}")
+                    data[table] = [dict(row) for row in cur.fetchall()]
+
+        return data
+    except Exception as e:
+        return {"error": str(e)}
+
+@csrf_exempt
+def chatbot_api(request):
+    if request.method == "POST":
+        try:
+            data = json.loads(request.body)
+            user_input = data.get("message", "")
+
+            db_data = get_filtered_data(user_input)
+            if "error" in db_data or not db_data:
+                return JsonResponse({"response": "관련 데이터가 없습니다. 다른 질문을 부탁드립니다."})
+
+            system_prompt = """
 너는 대한민국 국회의원과 정당의 실적 데이터를 분석하는 전문가 챗봇이야. 사용자 질문에 대해 정확하고 신뢰할 수 있는 데이터를 바탕으로 자연스럽고 명확한 한국어로 답변해야 해.
 
 반드시 지켜야 할 지침:
@@ -52,112 +158,43 @@ SYSTEM_PROMPT = """
 
 """
 
-def normalize_party_name(name):
-    table = {
-        "국힘": "국민의힘", "국힘당": "국민의힘", "국민의 힘": "국민의힘",
-        "민주당": "더불어민주당", "더민주": "더불어민주당", "더민주당": "더불어민주당", "여당": "더불어민주당",
-        "조국당": "조국혁신당", "혁신당": "조국혁신당",
-        "기본당": "기본소득당"
-    }
-    for k, v in table.items():
-        if k in name:
-            return v
-    return name
+            prompt = f"""
+[질문과 관련된 데이터]
+{json.dumps(db_data, ensure_ascii=False)}
 
-def get_member_info(name):
-    conn = sqlite3.connect(MEMBER_DB)
-    c = conn.cursor()
-    # 부분 일치 허용 (예: '이재명' 또는 '이재' 검색)
-    c.execute("SELECT * FROM ranking_members WHERE HG_NM LIKE ?", (f"%{name}%",))
-    row = c.fetchone()
-    if row:
-        columns = [desc[0] for desc in c.description]
-        data = dict(zip(columns, row))
-    else:
-        data = None
-    conn.close()
-    return data
+사용자 질문: {user_input}
+답변:
+"""
 
-def get_party_info(party_name):
-    party_std = normalize_party_name(party_name)
-    conn = sqlite3.connect(PARTY_DB)
-    c = conn.cursor()
-    # party_score
-    c.execute("SELECT * FROM party_score WHERE POLY_NM = ?", (party_std,))
-    score = c.fetchone()
-    score_cols = [desc[0] for desc in c.description] if c.description else []
-    # party_statistics_kr
-    c.execute("SELECT * FROM party_statistics_kr WHERE 정당 = ?", (party_std,))
-    stat = c.fetchone()
-    stat_cols = [desc[0] for desc in c.description] if c.description else []
-    conn.close()
-    score_data = dict(zip(score_cols, score)) if score and score_cols else None
-    stat_data = dict(zip(stat_cols, stat)) if stat and stat_cols else None
-    return score_data, stat_data
+            headers = {
+                "Authorization": f"Bearer {GROQ_API_KEY}",
+                "Content-Type": "application/json"
+            }
 
-def extract_query_intent(question):
-    import re
-    q = question.strip()
-    name_match = re.search(r'([가-힣]{2,4})\s?의원?', q)
-    if name_match:
-        name = name_match.group(1)
-        return {"type": "member", "name": name}
-    party_match = re.search(r'(더불어민주당|국민의힘|조국혁신당|기본소득당|정의당|새로운미래|진보당|개혁신당|국힘|더민주|더민주당|국힘당|조국당|혁신당|기본당)', q)
-    if party_match:
-        party = normalize_party_name(party_match.group(1))
-        return {"type": "party", "party": party}
-    return {"type": "general"}
+            payload = {
+                "model": "llama3-70b-8192",
+                "messages": [
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": prompt}
+                ]
+            }
 
-def make_llm_message(system_prompt, user_message, db_result):
-    if not db_result:
-        db_info = "관련 데이터가 없습니다."
-    else:
-        db_info = json.dumps(db_result, ensure_ascii=False)
-    return [
-        {"role": "system", "content": system_prompt},
-        {"role": "user", "content": f"{user_message}\n\n(참고 데이터: {db_info})"}
-    ]
+            response = requests.post("https://api.groq.com/openai/v1/chat/completions", headers=headers, json=payload)
 
-@csrf_exempt
-def chatbot_api(request):
-    if request.method != "POST":
-        return JsonResponse({"error": "POST only"}, status=405)
-    data = json.loads(request.body.decode())
-    question = data.get("question", "")
+            try:
+                res_json = response.json()
+                if "choices" not in res_json:
+                    return JsonResponse({"response": f"[Groq 오류] 응답 구조 이상: {res_json}"})
+                reply = res_json["choices"][0]["message"]["content"]
+                reply = reply.replace('\n', '<br>')
+                return JsonResponse({"response": reply})
+            except Exception as e:
+                return JsonResponse({"response": f"[예외 발생] {str(e)}"})
 
-    intent = extract_query_intent(question)
-    db_result = None
-    if intent["type"] == "member":
-        db_result = get_member_info(intent["name"])
-        if db_result is None:
-            return JsonResponse({"answer": "이름을 조금 더 정확히 입력해주세요."})
-    elif intent["type"] == "party":
-        score, stat = get_party_info(intent["party"])
-        if score is None and stat is None:
-            return JsonResponse({"answer": "관련 데이터가 없습니다."})
-        db_result = {}
-        if score is not None:
-            db_result["score"] = score
-        if stat is not None:
-            db_result["stat"] = stat
-    else:
-        db_result = None
+        except Exception as e:
+            return JsonResponse({"response": f"오류: {str(e)}"})
 
-    try:
-        openai.api_base = "https://openrouter.ai/api/v1"
-        openai.api_key = OPENROUTER_API_KEY
-        openai.organization = None
-        messages = make_llm_message(SYSTEM_PROMPT, question, db_result)
-        completion = openai.ChatCompletion.create(
-            model="meta-llama/llama-3-70b-instruct",  # 최신 무료, 대용량, 빠름!
-            messages=messages,
-            max_tokens=512,
-            temperature=0.2,
-        )
-        answer = completion["choices"][0]["message"]["content"].strip()
-        return JsonResponse({"answer": answer})
-    except Exception as e:
-        return JsonResponse({"answer": f"❌ 오류가 발생했습니다: {str(e)}"})
+    return JsonResponse({"response": "POST 요청을 보내주세요."})
 
 def chatbot_page(request):
     return render(request, "chatbot/test.html")

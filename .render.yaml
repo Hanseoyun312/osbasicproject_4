@@ -3,9 +3,9 @@ services:
     name: baekilha
     env: python
     buildCommand: pip install -r requirements.txt
-    startCommand: cd backend && gunicorn config.wsgi:application --bind 0.0.0.0:$PORT
+    startCommand: gunicorn config.wsgi:application
     envVars:
       - key: DJANGO_SETTINGS_MODULE
         value: config.settings
-      - key: OPENROUTER_API_KEY
-        value: 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
+      - key: GROQ_API_KEY
+        value: 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
