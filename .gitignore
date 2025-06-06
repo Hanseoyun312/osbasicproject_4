@@ -2,9 +2,6 @@
 __pycache__/
 *.pyc
 
-# DB 파일 (무시하고 싶을 경우)
-*.sqlite3
-
 # 환경 설정
 .env
 
