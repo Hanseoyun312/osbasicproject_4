@@ -8,4 +8,4 @@ services:
       - key: DJANGO_SETTINGS_MODULE
         value: config.settings
       - key: OPENROUTER_API_KEY
-        value: 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
+        value: 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
