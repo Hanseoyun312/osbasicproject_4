@@ -113,6 +113,32 @@
                 sendButton.click();
             }
         });
+        sendButton.addEventListener("click", () => {
+    const message = messageInput.value.trim();
+    if (!message) return;
+
+    appendMessage("user", message);
+    messageInput.value = "";
+
+    fetch("/chatbot/ask/", {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json"
+        },
+        body: JSON.stringify({ question: message })
+    })
+    .then(response => response.json())
+    .then(data => {
+        // 🟢 추가된 코드!
+        alert("서버에서 온 전체 응답: " + JSON.stringify(data));
+        appendMessage("bot", data.answer);
+    })
+    .catch(error => {
+        appendMessage("bot", "❌ 오류가 발생했습니다.");
+        console.error(error);
+    });
+});
+
     </script>
 </body>
 </html>
