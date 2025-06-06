@@ -91,16 +91,16 @@
             appendMessage("user", message);
             messageInput.value = "";
 
-            fetch("/api/ask/", {
+            fetch("/chatbot/ask/", { // 주소 주의!
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json"
                 },
-                body: JSON.stringify({ message: message })
+                body: JSON.stringify({ question: message }) // question!
             })
             .then(response => response.json())
             .then(data => {
-                appendMessage("bot", data.response);
+                appendMessage("bot", data.answer); // answer!
             })
             .catch(error => {
                 appendMessage("bot", "❌ 오류가 발생했습니다.");
