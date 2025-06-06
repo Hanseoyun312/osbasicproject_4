@@ -7,7 +7,7 @@ from django.shortcuts import render
 import json
 
 OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY")
-SYSTEM_PROMPT ="""
+SYSTEM_PROMPT = """
 너는 대한민국 국회의원과 정당의 실적 데이터를 분석하는 전문가 챗봇이야. 사용자 질문에 대해 정확하고 신뢰할 수 있는 데이터를 바탕으로 자연스럽고 명확한 한국어로 답변해야 해.
 
 반드시 지켜야 할 지침:
@@ -134,16 +134,19 @@ def chatbot_api(request):
     else:
         db_result = None
 
-    openai.api_key = OPENROUTER_API_KEY
-    messages = make_llm_message(SYSTEM_PROMPT, question, db_result)
-    completion = openai.ChatCompletion.create(
-        model="openrouter/meta-llama-3-70b-instruct",  # **추천: 무료+성능+최신, 종료 덜 됨**
-        messages=messages,
-        max_tokens=512,
-        temperature=0.2,
-    )
-    answer = completion["choices"][0]["message"]["content"].strip()
-    return JsonResponse({"answer": answer})
+    try:
+        openai.api_key = OPENROUTER_API_KEY
+        messages = make_llm_message(SYSTEM_PROMPT, question, db_result)
+        completion = openai.ChatCompletion.create(
+            model="openrouter/meta-llama-3-70b-instruct",  # 최신 추천 무료모델
+            messages=messages,
+            max_tokens=512,
+            temperature=0.2,
+        )
+        answer = completion["choices"][0]["message"]["content"].strip()
+        return JsonResponse({"answer": answer})
+    except Exception as e:
+        return JsonResponse({"answer": f"❌ 오류가 발생했습니다: {str(e)}"})
 
 def chatbot_page(request):
     return render(request, "chatbot/test.html")
