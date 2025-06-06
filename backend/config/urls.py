@@ -16,10 +16,16 @@ Including another URLconf
 """
 from django.contrib import admin
 from django.urls import path, include
+from ranking_members.views import get_member_rankings
+from ranking_parties.views import get_party_score, get_party_stats
 
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('compare_members/', include('compare_members.urls')),
     path('compare_parties/', include('compare_parties.urls')),
     path('searchapi/', include('searchapi.urls')),
+    path("api/", include("chatbot.urls")),
+    path('ranking/members/', get_member_rankings),
+    path('ranking/parties/score/', get_party_score),
+    path('ranking/parties/stats/', get_party_stats),
 ]
