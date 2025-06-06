@@ -6,8 +6,13 @@ from django.http import JsonResponse
 from django.shortcuts import render
 import json
 
+# 절대경로로 DB 연결 (배포 환경도 고려)
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+MEMBER_DB = os.path.join(BASE_DIR, "ranking_members.db")
+PARTY_DB = os.path.join(BASE_DIR, "ranking_parties.db")
+
 OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY")
-SYSTEM_PROMPT =  """
+SYSTEM_PROMPT = """
 너는 대한민국 국회의원과 정당의 실적 데이터를 분석하는 전문가 챗봇이야. 사용자 질문에 대해 정확하고 신뢰할 수 있는 데이터를 바탕으로 자연스럽고 명확한 한국어로 답변해야 해.
 
 반드시 지켜야 할 지침:
@@ -47,9 +52,6 @@ SYSTEM_PROMPT =  """
 
 """
 
-MEMBER_DB = os.path.join(os.path.dirname(__file__), "../../ranking_members.db")
-PARTY_DB = os.path.join(os.path.dirname(__file__), "../../ranking_parties.db")
-
 def normalize_party_name(name):
     table = {
         "국힘": "국민의힘", "국힘당": "국민의힘", "국민의 힘": "국민의힘",
@@ -65,7 +67,8 @@ def normalize_party_name(name):
 def get_member_info(name):
     conn = sqlite3.connect(MEMBER_DB)
     c = conn.cursor()
-    c.execute("SELECT * FROM ranking_members WHERE HG_NM = ?", (name,))
+    # 부분 일치 허용 (예: '이재명' 또는 '이재' 검색)
+    c.execute("SELECT * FROM ranking_members WHERE HG_NM LIKE ?", (f"%{name}%",))
     row = c.fetchone()
     if row:
         columns = [desc[0] for desc in c.description]
@@ -79,15 +82,17 @@ def get_party_info(party_name):
     party_std = normalize_party_name(party_name)
     conn = sqlite3.connect(PARTY_DB)
     c = conn.cursor()
+    # party_score
     c.execute("SELECT * FROM party_score WHERE POLY_NM = ?", (party_std,))
     score = c.fetchone()
-    score_cols = [desc[0] for desc in c.description] if score else []
+    score_cols = [desc[0] for desc in c.description] if c.description else []
+    # party_statistics_kr
     c.execute("SELECT * FROM party_statistics_kr WHERE 정당 = ?", (party_std,))
     stat = c.fetchone()
-    stat_cols = [desc[0] for desc in c.description] if stat else []
+    stat_cols = [desc[0] for desc in c.description] if c.description else []
     conn.close()
-    score_data = dict(zip(score_cols, score)) if score else None
-    stat_data = dict(zip(stat_cols, stat)) if stat else None
+    score_data = dict(zip(score_cols, score)) if score and score_cols else None
+    stat_data = dict(zip(stat_cols, stat)) if stat and stat_cols else None
     return score_data, stat_data
 
 def extract_query_intent(question):
@@ -128,19 +133,23 @@ def chatbot_api(request):
             return JsonResponse({"answer": "이름을 조금 더 정확히 입력해주세요."})
     elif intent["type"] == "party":
         score, stat = get_party_info(intent["party"])
-        if not (score or stat):
+        if score is None and stat is None:
             return JsonResponse({"answer": "관련 데이터가 없습니다."})
-        db_result = {"score": score, "stat": stat}
+        db_result = {}
+        if score is not None:
+            db_result["score"] = score
+        if stat is not None:
+            db_result["stat"] = stat
     else:
         db_result = None
 
     try:
-        openai.api_base = "https://openrouter.ai/api/v1"   # ← 꼭 추가!
+        openai.api_base = "https://openrouter.ai/api/v1"
         openai.api_key = OPENROUTER_API_KEY
-        openai.organization = None  # 혹시 모를 충돌 방지
+        openai.organization = None
         messages = make_llm_message(SYSTEM_PROMPT, question, db_result)
         completion = openai.ChatCompletion.create(
-            model="meta-llama/llama-3-70b-instruct",  # ← "openrouter/" 빼고!
+            model="meta-llama/llama-3-70b-instruct",  # 최신 무료, 대용량, 빠름!
             messages=messages,
             max_tokens=512,
             temperature=0.2,
