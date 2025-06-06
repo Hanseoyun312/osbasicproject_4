@@ -27,7 +27,7 @@ def compare_parties(request):
     cur = conn.cursor()
 
     # 전체 정당 평균실적 가져오기
-    cur.execute("SELECT 정당, 평균실적 FROM party_score ORDER BY 평균실적 DESC")
+    cur.execute("SELECT POLY_NM, 평균실적 FROM party_score ORDER BY 평균실적 DESC")
     all_parties = cur.fetchall()
     rank_dict = {party: idx + 1 for idx, (party, _) in enumerate(all_parties)}
 
