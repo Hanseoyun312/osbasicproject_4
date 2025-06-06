@@ -118,9 +118,7 @@ def chatbot_api(request):
             if "error" in db_data or not db_data:
                 return JsonResponse({"response": "관련 데이터가 없습니다. 다른 질문을 부탁드립니다."})
 
-            프롬프트
-
-system_prompt = """
+            system_prompt = """
 너는 대한민국 국회의원과 정당의 실적 데이터를 분석하는 전문가 챗봇이야. 사용자 질문에 대해 정확하고 신뢰할 수 있는 데이터를 바탕으로 자연스럽고 명확한 한국어로 답변해야 해.
 
 반드시 지켜야 할 지침:
