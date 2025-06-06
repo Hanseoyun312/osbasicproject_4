@@ -1,124 +1,87 @@
-# backend/chatbot/views.py (업그레이드 버전)
+import os
+import json
 import sqlite3
 import requests
-import os
-from dotenv import load_dotenv
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.shortcuts import render
-import json
 
-load_dotenv()
-
-GROQ_API_KEY = os.getenv("GROQ_API_KEY")
-
+# DB 경로 설정
 BASE_DIR = os.path.dirname(__file__)
 RANKING_MEMBERS_DB = os.path.join(BASE_DIR, '..', 'ranking_members.db')
 RANKING_PARTIES_DB = os.path.join(BASE_DIR, '..', 'ranking_parties.db')
 
-MEMBER_FIELDS = []
-PARTY_FIELDS = []
+# API 키: Render에서는 .env 없이 환경 변수로 자동 로드됨
+OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY")
+
+# 데이터 필드 로드
+MEMBER_FIELDS, PARTY_FIELDS = [], []
 
 def load_all_fields():
     global MEMBER_FIELDS, PARTY_FIELDS
     try:
         with sqlite3.connect(RANKING_MEMBERS_DB) as conn:
             cursor = conn.execute("PRAGMA table_info(ranking_members)")
-            MEMBER_FIELDS = [row[1] for row in cursor.fetchall() if row[1] != '']
+            MEMBER_FIELDS = [row[1] for row in cursor.fetchall()]
+
         with sqlite3.connect(RANKING_PARTIES_DB) as conn:
             cursor1 = conn.execute("PRAGMA table_info(party_score)")
             cursor2 = conn.execute("PRAGMA table_info(party_statistics_kr)")
             PARTY_FIELDS = [row[1] for row in cursor1.fetchall()] + [row[1] for row in cursor2.fetchall()]
-    except Exception:
+    except:
         MEMBER_FIELDS = ["HG_NM", "POLY_NM"]
         PARTY_FIELDS = ["정당"]
 
 load_all_fields()
 
-def normalize_party_name(user_input):
+# 정당명 정규화
+def normalize_party_name(text):
     party_map = {
-        "국힘": "국민의힘",
-        "국민의 힘": "국민의힘",
-        "국힘당": "국민의힘",
-        "민주당": "더불어민주당",
-        "더민주": "더불어민주당",
-        "더민주당": "더불어민주당",
-        "여당": "더불어민주당",
-        "조국당": "조국혁신당",
-        "혁신당": "조국혁신당",
-        "기본당": "기본소득당"
+        "국힘": "국민의힘", "국민의 힘": "국민의힘", "국힘당": "국민의힘",
+        "민주당": "더불어민주당", "더민주": "더불어민주당", "여당": "더불어민주당",
+        "조국당": "조국혁신당", "혁신당": "조국혁신당", "기본당": "기본소득당"
     }
-    for k, v in party_map.items():
-        if k in user_input:
-            return v
+    for key, value in party_map.items():
+        if key in text:
+            return value
     return None
 
-def fallback_to_table(user_input):
-    if "의원수" in user_input and "정당" in user_input:
-        return ("party_score", ["정당", "의원수", "의원수_순위"])
-    if "기권" in user_input and "의원" in user_input:
-        return ("ranking_members", ["HG_NM", "POLY_NM", "기권_무효", "기권_무효_순위"])
-    return None
-
+# DB에서 필요한 데이터 필터링
 def get_filtered_data(user_input):
-    data = {}
+    result = {}
     try:
-        matched = False
+        match = False
         norm_party = normalize_party_name(user_input)
 
-        if any(col in user_input for col in MEMBER_FIELDS):
-            matched = True
+        if any(field in user_input for field in MEMBER_FIELDS):
             with sqlite3.connect(RANKING_MEMBERS_DB) as conn:
                 conn.row_factory = sqlite3.Row
                 cur = conn.cursor()
-                cur.execute("SELECT * FROM ranking_members WHERE HG_NM LIKE ?", (f"%{user_input}%",))
-                rows = cur.fetchall()
-                if rows:
-                    data["ranking_members"] = [dict(row) for row in rows]
+                cur.execute("SELECT * FROM ranking_members")
+                result["ranking_members"] = [dict(row) for row in cur.fetchall()]
+                match = True
 
-        if any(col in user_input for col in PARTY_FIELDS) or norm_party:
-            matched = True
+        if any(field in user_input for field in PARTY_FIELDS) or norm_party:
             with sqlite3.connect(RANKING_PARTIES_DB) as conn:
                 conn.row_factory = sqlite3.Row
                 cur = conn.cursor()
-                if norm_party:
-                    cur.execute("SELECT * FROM party_score WHERE 정당 = ?", (norm_party,))
-                    data["party_score"] = [dict(row) for row in cur.fetchall()]
-                    cur.execute("SELECT * FROM party_statistics_kr WHERE 정당 = ?", (norm_party,))
-                    data["party_statistics_kr"] = [dict(row) for row in cur.fetchall()]
-                else:
-                    cur.execute("SELECT * FROM party_score")
-                    data["party_score"] = [dict(row) for row in cur.fetchall()]
-                    cur.execute("SELECT * FROM party_statistics_kr")
-                    data["party_statistics_kr"] = [dict(row) for row in cur.fetchall()]
+                cur.execute("SELECT * FROM party_score")
+                result["party_score"] = [dict(row) for row in cur.fetchall()]
+                cur.execute("SELECT * FROM party_statistics_kr")
+                result["party_statistics_kr"] = [dict(row) for row in cur.fetchall()]
+                match = True
 
-        if not matched:
-            fallback = fallback_to_table(user_input)
-            if fallback:
-                table, columns = fallback
-                target_db = RANKING_MEMBERS_DB if table == "ranking_members" else RANKING_PARTIES_DB
-                with sqlite3.connect(target_db) as conn:
-                    conn.row_factory = sqlite3.Row
-                    cur = conn.cursor()
-                    cur.execute(f"SELECT {', '.join(columns)} FROM {table}")
-                    data[table] = [dict(row) for row in cur.fetchall()]
-
-        return data
+        return result if match else {}
     except Exception as e:
         return {"error": str(e)}
 
+# 챗봇 API
 @csrf_exempt
 def chatbot_api(request):
-    print(">>> ranking_members.db exists:", os.path.exists(RANKING_MEMBERS_DB))
-    print(">>> ranking_parties.db exists:", os.path.exists(RANKING_PARTIES_DB))
-    print(">>> RANKING_MEMBERS_DB path:", RANKING_MEMBERS_DB)
-    print(">>> RANKING_PARTIES_DB path:", RANKING_PARTIES_DB)
-
-
     if request.method == "POST":
         try:
-            data = json.loads(request.body)
-            user_input = data.get("message", "")
+            body = json.loads(request.body)
+            user_input = body.get("message", "")
             db_data = get_filtered_data(user_input)
 
             if "error" in db_data or not db_data:
@@ -128,7 +91,7 @@ def chatbot_api(request):
 너는 대한민국 국회의원과 정당의 실적 데이터를 분석하는 전문가 챗봇이야. 사용자 질문에 대해 정확하고 신뢰할 수 있는 데이터를 바탕으로 자연스럽고 명확한 한국어로 답변해야 해.
 
 반드시 지켜야 할 지침:
-1. DB에 존재하는 실제 데이터만 기반으로 답변해. 만들어내거나 과장하지 마.
+1. DB에 존재하는 실제 데이터만 기반으로 답변해. 절대로 만들어내거나 과장하지 마.
     - 국회의원을 묻는 질문엔 'ranking_members' 테이블을 기준으로 삼아.
     - 정당을 묻는 질문엔 'party_score' 또는 'party_statistics_kr' 테이블을 기준으로 삼아.
     - 정당의 '평균실적', '가중점수', '의원수' 등은 'party_score' 테이블을 참고해.
@@ -163,43 +126,39 @@ def chatbot_api(request):
     - '더불어민주당 의원은 총 몇 명이야?' → '더불어민주당' 정당의 '의원수' 값을 알려줘. 
 
 """
-
-            prompt = f"""
-[질문과 관련된 데이터]
-{json.dumps(db_data, ensure_ascii=False)}
-
-사용자 질문: {user_input}
-답변:
+            user_prompt = f"""
+[질문]: {user_input}
+[관련 데이터]: {json.dumps(db_data, ensure_ascii=False)}
 """
 
             headers = {
-                "Authorization": f"Bearer {GROQ_API_KEY}",
+                "Authorization": f"Bearer {OPENROUTER_API_KEY}",
+                "HTTP-Referer": "https://yourdomain.com",  # 필요 시 수정
                 "Content-Type": "application/json"
             }
 
             payload = {
-                "model": "meta-llama/llama-3-8b-instruct",
+                "model": "gpt-3.5-turbo",
                 "messages": [
                     {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": prompt}
+                    {"role": "user", "content": user_prompt}
                 ]
             }
 
-            response = requests.post("https://api.groq.com/openai/v1/chat/completions", headers=headers, json=payload)
-            reply_data = response.json()
+            response = requests.post("https://openrouter.ai/api/v1/chat/completions", headers=headers, json=payload)
+            res_json = response.json()
 
-            if "choices" not in reply_data:
-                return JsonResponse({"response": f"[Groq 오류] 응답 구조 이상: {reply_data}"})
+            if "choices" not in res_json:
+                return JsonResponse({"response": f"[오류] {res_json}"})
 
-            reply = reply_data["choices"][0]["message"]["content"]
-            reply = reply.replace('\n', '<br>')
-
+            reply = res_json["choices"][0]["message"]["content"].replace('\n', '<br>')
             return JsonResponse({"response": reply})
 
         except Exception as e:
-            return JsonResponse({"response": f"오류: {str(e)}"})
+            return JsonResponse({"response": f"[예외 발생] {str(e)}"})
 
     return JsonResponse({"response": "POST 요청을 보내주세요."})
 
+# 테스트용 HTML 렌더링
 def chatbot_page(request):
     return render(request, "chatbot/test.html")
