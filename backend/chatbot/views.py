@@ -109,6 +109,12 @@ def get_filtered_data(user_input):
 
 @csrf_exempt
 def chatbot_api(request):
+    print(">>> ranking_members.db exists:", os.path.exists(RANKING_MEMBERS_DB))
+    print(">>> ranking_parties.db exists:", os.path.exists(RANKING_PARTIES_DB))
+    print(">>> RANKING_MEMBERS_DB path:", RANKING_MEMBERS_DB)
+    print(">>> RANKING_PARTIES_DB path:", RANKING_PARTIES_DB)
+
+
     if request.method == "POST":
         try:
             data = json.loads(request.body)
