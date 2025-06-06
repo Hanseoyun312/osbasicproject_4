@@ -140,7 +140,7 @@ def chatbot_api(request):
         openai.organization = None  # 혹시 모를 충돌 방지
         messages = make_llm_message(SYSTEM_PROMPT, question, db_result)
         completion = openai.ChatCompletion.create(
-            model="meta-llama-3-70b-instruct",  # ← "openrouter/" 빼고!
+            model="meta-llama/llama-3-70b-instruct",  # ← "openrouter/" 빼고!
             messages=messages,
             max_tokens=512,
             temperature=0.2,
