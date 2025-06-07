@@ -28,4 +28,9 @@ urlpatterns = [
     path('ranking/members/', get_member_rankings),
     path('ranking/parties/score/', get_party_score),
     path('ranking/parties/stats/', get_party_stats),
+    path('pybo/',include('pybo.urls')),
+    path("performance/", include("performance.urls")),  # 🔥 performance 앱 추가!
+    path("legislation/", include("legislation.urls")),  # 🚀 legislation 앱의 API 
+    path("vote/", include("vote.urls")),  # 🚀 vote 앱의 API 연결!
+    path("attendance/", include("attendance.urls")),  # 🚀 attendance 앱 API 연결!
 ]
