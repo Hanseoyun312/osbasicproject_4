@@ -76,7 +76,7 @@ def update_weights_and_recalculate(request):
             "vote_mismatch_weight": 4.0
         }
 
-        calculate_performance_scores(weights)  # 국회의원 실적 업데이트
+        calculate_performance_scores(**weights)  # 국회의원 실적 업데이트
         calculate_party_performance_scores(weights)  # 정당 실적 업데이트
 
         return JsonResponse({"message": "✅ 실적 업데이트 완료! (사용자 입력 반영됨)"})
