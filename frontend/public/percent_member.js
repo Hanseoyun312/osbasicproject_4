@@ -691,4 +691,17 @@ function loadMemberByName(name) {
     }
 }
 
+// ✅ 4. 뒤로가기 / 앞으로가기 / 주소창 수동 변경 반영
+window.addEventListener('popstate', () => {
+    const params = new URLSearchParams(window.location.search);
+    const name = params.get('member');
+
+    if (name) {
+        const input = document.getElementById('memberSearchInput');
+        input.value = name;
+
+        loadMemberByName(name);
+    }
+});
+
 console.log('📦 percent_member.js 로드 완료 (검색 기능 수정 버전)');
