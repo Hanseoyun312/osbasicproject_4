@@ -8,4 +8,4 @@ services:
       - key: DJANGO_SETTINGS_MODULE
         value: config.settings
       - key: GROQ_API_KEY
-        value: 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
+        value: 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
