@@ -1,10 +1,10 @@
 /**
- * rank_party.js (v3.0.0) - 클라이언트 사이드 가중치 연동 정당 랭킹 시스템
- * 개선사항: percent 페이지의 가중치를 받아서 클라이언트에서 정당 순위 재계산
+ * rank_party.js (v3.1.0) - 클라이언트 사이드 가중치 연동 정당 랭킹 시스템 (BroadcastChannel 안전 처리)
+ * 개선사항: percent 페이지의 가중치를 받아서 클라이언트에서 정당 순위 재계산 + 안전한 채널 관리
  */
 
 document.addEventListener('DOMContentLoaded', function() {
-    console.log('🚀 클라이언트 가중치 연동 정당 랭킹 페이지 로드 시작 (v3.0.0)');
+    console.log('🚀 클라이언트 가중치 연동 정당 랭킹 페이지 로드 시작 (v3.1.0)');
 
     // === 🔧 상태 관리 변수들 ===
     let partyData = [];
@@ -99,16 +99,28 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     };
 
-    // === 🔗 실시간 연동 시스템 초기화 ===
-    function initializeRealTimeSync() {
-        console.log('[RankParty] 🔗 클라이언트 가중치 연동 시스템 초기화...');
-        
+    // === 📡 안전한 BroadcastChannel 관리 ===
+    function createBroadcastChannel() {
+        if (typeof BroadcastChannel === 'undefined') {
+            console.warn('[RankParty] ⚠️ BroadcastChannel을 지원하지 않는 브라우저입니다');
+            return false;
+        }
+
         try {
-            // 1. BroadcastChannel 설정
-            if (typeof BroadcastChannel !== 'undefined') {
-                weightSyncState.realTimeUpdateChannel = new BroadcastChannel('client_weight_updates_v3');
-                
-                weightSyncState.realTimeUpdateChannel.addEventListener('message', async function(event) {
+            // 기존 채널이 있으면 정리
+            if (weightSyncState.realTimeUpdateChannel) {
+                try {
+                    weightSyncState.realTimeUpdateChannel.close();
+                } catch (e) {
+                    // 이미 닫혔을 수 있음
+                }
+            }
+
+            // 새 채널 생성
+            weightSyncState.realTimeUpdateChannel = new BroadcastChannel('client_weight_updates_v4');
+            
+            weightSyncState.realTimeUpdateChannel.addEventListener('message', async function(event) {
+                try {
                     const data = event.data;
                     console.log('[RankParty] 📡 가중치 업데이트 수신:', data);
                     
@@ -116,7 +128,7 @@ document.addEventListener('DOMContentLoaded', function() {
                         await handleClientWeightUpdate(data);
                     } else if (data.type === 'connection_check') {
                         // percent 페이지의 연결 확인 요청에 응답
-                        weightSyncState.realTimeUpdateChannel.postMessage({
+                        safeBroadcast({
                             type: 'connection_response',
                             source: 'rank_party_page',
                             timestamp: new Date().toISOString(),
@@ -125,10 +137,65 @@ document.addEventListener('DOMContentLoaded', function() {
                         weightSyncState.percentPageConnected = true;
                         updateConnectionStatus();
                     }
-                });
-                
-                console.log('[RankParty] ✅ BroadcastChannel 초기화 완료');
+                } catch (error) {
+                    console.warn('[RankParty] 메시지 처리 실패:', error);
+                }
+            });
+
+            // 채널 오류 처리
+            weightSyncState.realTimeUpdateChannel.addEventListener('error', function(error) {
+                console.warn('[RankParty] BroadcastChannel 오류:', error);
+                // 채널 재생성 시도
+                setTimeout(createBroadcastChannel, 1000);
+            });
+            
+            console.log('[RankParty] ✅ BroadcastChannel 초기화 완료');
+            return true;
+            
+        } catch (error) {
+            console.error('[RankParty] BroadcastChannel 초기화 실패:', error);
+            weightSyncState.realTimeUpdateChannel = null;
+            return false;
+        }
+    }
+
+    // === 📡 안전한 브로드캐스트 함수 ===
+    function safeBroadcast(data) {
+        try {
+            if (!weightSyncState.realTimeUpdateChannel) {
+                // 채널이 없으면 재생성 시도
+                if (!createBroadcastChannel()) {
+                    return false;
+                }
             }
+
+            weightSyncState.realTimeUpdateChannel.postMessage(data);
+            return true;
+            
+        } catch (error) {
+            console.warn('[RankParty] 브로드캐스트 실패, 채널 재생성 시도:', error);
+            
+            // 채널 재생성 시도
+            if (createBroadcastChannel()) {
+                try {
+                    weightSyncState.realTimeUpdateChannel.postMessage(data);
+                    return true;
+                } catch (retryError) {
+                    console.warn('[RankParty] 재시도 후에도 브로드캐스트 실패:', retryError);
+                }
+            }
+            
+            return false;
+        }
+    }
+
+    // === 🔗 실시간 연동 시스템 초기화 ===
+    function initializeRealTimeSync() {
+        console.log('[RankParty] 🔗 클라이언트 가중치 연동 시스템 초기화...');
+        
+        try {
+            // 1. BroadcastChannel 설정
+            createBroadcastChannel();
             
             // 2. localStorage 이벤트 감지
             window.addEventListener('storage', function(e) {
@@ -1401,7 +1468,7 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     };
 
-    // === 🛠️ 디버그 유틸리티 ===
+    // === 🛠️ 디버그 유틸리티 (개선된 버전) ===
     window.partyRankingDebug = {
         getState: () => ({
             partyData,
@@ -1416,8 +1483,29 @@ document.addEventListener('DOMContentLoaded', function() {
         getCurrentWeights: () => weightSyncState.currentWeights,
         getOriginalData: () => originalPartyData,
         
+        recreateChannel: () => {
+            console.log('[RankParty] BroadcastChannel 재생성 시도...');
+            const success = createBroadcastChannel();
+            console.log('[RankParty] 재생성 결과:', success ? '성공' : '실패');
+            return success;
+        },
+        
+        getChannelStatus: () => {
+            return {
+                exists: !!weightSyncState.realTimeUpdateChannel,
+                type: typeof weightSyncState.realTimeUpdateChannel,
+                supported: typeof BroadcastChannel !== 'undefined'
+            };
+        },
+        
+        testBroadcast: (testData = { test: true, timestamp: new Date().toISOString() }) => {
+            const success = safeBroadcast(testData);
+            console.log('[RankParty] 테스트 브로드캐스트 결과:', success ? '성공' : '실패');
+            return success;
+        },
+        
         showInfo: () => {
-            console.log('[RankParty] 📊 정당 랭킹 페이지 정보 (v3.0.0):');
+            console.log('[RankParty] 📊 정당 랭킹 페이지 정보 (v3.1.0):');
             console.log('- 로드된 정당 수:', partyData.length);
             console.log('- 원본 데이터:', originalPartyData.length, '개');
             console.log('- 성과 데이터:', Object.keys(partyPerformanceData).length, '개');
@@ -1430,6 +1518,7 @@ document.addEventListener('DOMContentLoaded', function() {
             console.log('- 마지막 가중치 업데이트:', weightSyncState.lastWeightUpdate || '없음');
             const weightAppliedCount = partyData.filter(p => p.weightApplied).length;
             console.log('- 가중치 적용된 정당:', weightAppliedCount, '개');
+            console.log('- BroadcastChannel 상태:', this.getChannelStatus());
         },
         
         testWeightCalculation: (partyName) => {
@@ -1448,7 +1537,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // === 🚀 페이지 초기화 ===
     async function initializePage() {
-        console.log('[RankParty] 🚀 클라이언트 가중치 연동 정당 랭킹 페이지 초기화... (v3.0.0)');
+        console.log('[RankParty] 🚀 클라이언트 가중치 연동 정당 랭킹 페이지 초기화... (v3.1.0)');
         
         try {
             // 실시간 연동 시스템 먼저 초기화
@@ -1497,5 +1586,5 @@ document.addEventListener('DOMContentLoaded', function() {
     // 초기화 실행
     setTimeout(initializePage, 100);
 
-    console.log('[RankParty] ✅ 클라이언트 가중치 연동 정당 랭킹 페이지 스크립트 로드 완료 (v3.0.0)');
+    console.log('[RankParty] ✅ 클라이언트 가중치 연동 정당 랭킹 페이지 스크립트 로드 완료 (v3.1.0)');
 });

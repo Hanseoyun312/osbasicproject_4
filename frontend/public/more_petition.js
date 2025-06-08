@@ -482,8 +482,8 @@ document.addEventListener('DOMContentLoaded', function() {
     if (homeIcon) {
         homeIcon.addEventListener('click', function(e) {
             e.preventDefault();
-            // 청원 현황 페이지로 이동
-            window.location.href = 'petition.html';
+            const targetUrl = apiData.LINK_URL || 'petition.html';
+            window.location.href = targetUrl;  
         });
     }
 
