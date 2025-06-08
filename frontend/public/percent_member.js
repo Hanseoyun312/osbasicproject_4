@@ -1,4 +1,4 @@
-// 국회의원 상세정보 페이지 (검색 기능 개선)
+// 국회의원 상세정보 페이지 (검색 기능 대폭 개선 버전)
 
 // 페이지 상태 관리
 let pageState = {
@@ -13,7 +13,8 @@ let pageState = {
     isLoading: false,
     hasError: false,
     isSearching: false,
-    apiErrors: {} // API 오류 추적
+    apiErrors: {}, // API 오류 추적
+    partyData: {} // 정당별 색상 데이터
 };
 
 // 기본 국회의원 정보
@@ -115,6 +116,76 @@ function initializeElements() {
     console.log('✅ DOM 요소 초기화 완료');
 }
 
+// 정당별 색상 데이터 가져오기
+function getPartyColors() {
+    const root = document.documentElement;
+    const computedStyle = getComputedStyle(root);
+    
+    return {
+        "더불어민주당": {
+            color: computedStyle.getPropertyValue('--party-dp-main')?.trim() || "#152484",
+            lightColor: computedStyle.getPropertyValue('--party-dp-secondary')?.trim() || "#15248480",
+            bgColor: computedStyle.getPropertyValue('--party-dp-bg')?.trim() || "#152484"
+        },
+        "국민의힘": {
+            color: computedStyle.getPropertyValue('--party-ppp-main')?.trim() || "#E61E2B",
+            lightColor: computedStyle.getPropertyValue('--party-ppp-secondary')?.trim() || "#E61E2B80",
+            bgColor: computedStyle.getPropertyValue('--party-ppp-bg')?.trim() || "#E61E2B"
+        },
+        "조국혁신당": {
+            color: computedStyle.getPropertyValue('--party-rk-main')?.trim() || "#06275E",
+            lightColor: computedStyle.getPropertyValue('--party-rk-secondary')?.trim() || "#0073CF",
+            bgColor: computedStyle.getPropertyValue('--party-rk-bg')?.trim() || "#06275E"
+        },
+        "개혁신당": {
+            color: computedStyle.getPropertyValue('--party-reform-main')?.trim() || "#FF7210",
+            lightColor: computedStyle.getPropertyValue('--party-reform-secondary')?.trim() || "#FF721080",
+            bgColor: computedStyle.getPropertyValue('--party-reform-bg')?.trim() || "#FF7210"
+        },
+        "진보당": {
+            color: computedStyle.getPropertyValue('--party-jp-main')?.trim() || "#D6001C",
+            lightColor: computedStyle.getPropertyValue('--party-jp-secondary')?.trim() || "#D6001C80",
+            bgColor: computedStyle.getPropertyValue('--party-jp-bg')?.trim() || "#D6001C"
+        },
+        "기본소득당": {
+            color: computedStyle.getPropertyValue('--party-bip-main')?.trim() || "#091E3A",
+            lightColor: computedStyle.getPropertyValue('--party-bip-secondary')?.trim() || "#00D2C3",
+            bgColor: computedStyle.getPropertyValue('--party-bip-bg')?.trim() || "#091E3A"
+        },
+        "사회민주당": {
+            color: computedStyle.getPropertyValue('--party-sdp-main')?.trim() || "#43A213",
+            lightColor: computedStyle.getPropertyValue('--party-sdp-secondary')?.trim() || "#F58400",
+            bgColor: computedStyle.getPropertyValue('--party-sdp-bg')?.trim() || "#43A213"
+        },
+        "무소속": {
+            color: computedStyle.getPropertyValue('--party-ind-main')?.trim() || "#4B5563",
+            lightColor: computedStyle.getPropertyValue('--party-ind-secondary')?.trim() || "#9CA3AF",
+            bgColor: computedStyle.getPropertyValue('--party-ind-bg')?.trim() || "#4B5563"
+        }
+    };
+}
+
+// 정당명 정규화
+function normalizePartyName(partyName) {
+    if (!partyName) return '무소속';
+    
+    const nameMapping = {
+        '더불어민주당': '더불어민주당',
+        '민주당': '더불어민주당',
+        '국민의힘': '국민의힘',
+        '국민의 힘': '국민의힘',
+        '조국혁신당': '조국혁신당',
+        '개혁신당': '개혁신당',
+        '진보당': '진보당',
+        '기본소득당': '기본소득당',
+        '사회민주당': '사회민주당',
+        '무소속': '무소속',
+        '없음': '무소속'
+    };
+
+    return nameMapping[partyName] || partyName;
+}
+
 // 로딩 상태 표시/숨김
 function toggleLoadingState(show) {
     pageState.isLoading = show;
@@ -207,10 +278,11 @@ async function fetchMemberList() {
         // API 데이터 매핑 (더 유연한 필드 매핑)
         pageState.memberList = rawData.map(member => ({
             name: member.name || member.HG_NM || member.member_name || '',
-            party: member.party || member.POLY_NM || member.party_name || '무소속',
+            party: normalizePartyName(member.party || member.POLY_NM || member.party_name || '무소속'),
             mona_cd: member.mona_cd || member.MONA_CD || member.member_code || '',
             homepage: member.homepage || member.HOMEPAGE || '',
             phone: member.phone || member.PHONE || '',
+            district: member.district || member.DISTRICT || `${normalizePartyName(member.party || member.POLY_NM)} 소속`,
             _raw: member
         }));
         
@@ -270,7 +342,7 @@ async function fetchPerformanceData() {
         // 🔧 필드 매핑
         pageState.performanceData = performanceData.map(perf => {
             const name = perf.lawmaker_name || perf.name || perf.HG_NM || perf.member_name || '';
-            const party = perf.party || perf.POLY_NM || perf.party_name || '무소속';
+            const party = normalizePartyName(perf.party || perf.POLY_NM || perf.party_name || '무소속');
             const totalScore = parseFloat(perf.total_socre || perf.total_score || 0); // 오타 대응
 
             return {
@@ -331,7 +403,7 @@ async function fetchCommitteeData() {
                 committee: member.DEPT_NM || member.committee || member.committee_name || '위원회 없음',
                 position: member.JOB_RES_NM || member.position || member.job_title || '일반위원',
                 member_name: memberName,
-                party: member.POLY_NM || member.party || member.party_name || '무소속',
+                party: normalizePartyName(member.POLY_NM || member.party || member.party_name || '무소속'),
                 member_code: member.MONA_CD || member.member_code || '',
                 _raw: member
             });
@@ -378,7 +450,7 @@ async function fetchRankingData() {
         
         pageState.rankingData = rankingData.map(rank => ({
             name: rank.HG_NM || rank.name || rank.member_name || '',
-            party: rank.POLY_NM || rank.party || rank.party_name || '무소속',
+            party: normalizePartyName(rank.POLY_NM || rank.party || rank.party_name || '무소속'),
             overall_rank: parseInt(rank.총점_순위 || rank.overall_rank || rank.rank || 999),
             _raw: rank
         }));
@@ -442,7 +514,7 @@ async function fetchAttendanceData() {
         
         pageState.attendanceData = attendanceData.map(att => ({
             member_name: att.member_name || att.HG_NM || '',
-            party: att.party || att.POLY_NM || '무소속',
+            party: normalizePartyName(att.party || att.POLY_NM || '무소속'),
             total_meetings: parseInt(att.total_meetings || att.TOTAL_MEETINGS || 0),
             attendance: parseInt(att.attendance || att.ATTENDANCE || 0),
             attendance_rate: parseFloat(att.attendance_rate || att.ATTENDANCE_RATE || 0),
@@ -609,11 +681,11 @@ function generateFallbackPerformanceData() {
 // 폴백 국회의원 명단 (확장)
 function getFallbackMemberList() {
     return [
-        { name: '나경원', party: '국민의힘', mona_cd: 'MEMBER_001', homepage: 'https://www.assembly.go.kr' },
-        { name: '이재명', party: '더불어민주당', mona_cd: 'MEMBER_002', homepage: 'https://www.assembly.go.kr' },
-        { name: '조국', party: '조국혁신당', mona_cd: 'MEMBER_003', homepage: 'https://www.assembly.go.kr' },
-        { name: '안철수', party: '개혁신당', mona_cd: 'MEMBER_004', homepage: 'https://www.assembly.go.kr' },
-        { name: '진성준', party: '진보당', mona_cd: 'MEMBER_005', homepage: 'https://www.assembly.go.kr' }
+        { name: '나경원', party: '국민의힘', mona_cd: 'MEMBER_001', homepage: 'https://www.assembly.go.kr', district: '서울 강남구갑' },
+        { name: '이재명', party: '더불어민주당', mona_cd: 'MEMBER_002', homepage: 'https://www.assembly.go.kr', district: '경기 계양구갑' },
+        { name: '조국', party: '조국혁신당', mona_cd: 'MEMBER_003', homepage: 'https://www.assembly.go.kr', district: '서울 종로구' },
+        { name: '안철수', party: '개혁신당', mona_cd: 'MEMBER_004', homepage: 'https://www.assembly.go.kr', district: '서울 강남구을' },
+        { name: '진성준', party: '진보당', mona_cd: 'MEMBER_005', homepage: 'https://www.assembly.go.kr', district: '서울 마포구갑' }
     ];
 }
 
@@ -1045,7 +1117,7 @@ function updateStatsWithFallback(member, attendance, billCount, committees) {
     updateStatElement(elements.voteMismatchStat, fallbackStats.voteMismatch, '%');
 }
 
-// 🔧 대폭 개선된 검색 관련 함수들
+// 🔧 대폭 개선된 검색 관련 함수들 (compare_member.js 방식 적용)
 function setupSearch() {
     console.log('🔍 검색 기능 설정 시작...');
     
@@ -1053,6 +1125,9 @@ function setupSearch() {
         console.warn('❌ 검색 입력창을 찾을 수 없습니다');
         return;
     }
+    
+    // 정당별 색상 데이터 초기화
+    pageState.partyData = getPartyColors();
     
     const searchContainer = elements.searchInput.parentElement;
     if (!searchContainer) {
@@ -1072,7 +1147,7 @@ function setupSearch() {
             right: 0;
             background: white;
             border: 1px solid #ddd;
-            border-radius: 4px;
+            border-radius: 0 0 4px 4px;
             box-shadow: 0 2px 8px rgba(0,0,0,0.1);
             max-height: 300px;
             overflow-y: auto;
@@ -1217,12 +1292,13 @@ function performSearch(query) {
             
             const nameMatch = normalize(member.name).includes(normalizedQuery);
             const partyMatch = member.party && normalize(member.party).includes(normalizedQuery);
+            const districtMatch = member.district && normalize(member.district).includes(normalizedQuery);
 
             // 정당 필터 적용
             const partyFilter = elements.partyFilter ? elements.partyFilter.value : '';
             const partyFilterMatch = !partyFilter || member.party === partyFilter;
 
-            const isMatch = (nameMatch || partyMatch) && partyFilterMatch;
+            const isMatch = (nameMatch || partyMatch || districtMatch) && partyFilterMatch;
             
             if (isMatch) {
                 console.log(`✅ 매칭: ${member.name} (${member.party})`);
@@ -1247,7 +1323,7 @@ function showSearchError(message) {
     
     elements.searchResults.innerHTML = `
         <div class="search-error" style="
-            padding: 10px;
+            padding: 15px;
             color: #666;
             text-align: center;
             font-style: italic;
@@ -1291,7 +1367,7 @@ function displaySearchResults(results, query = '') {
                 cursor: pointer;
                 display: flex;
                 align-items: center;
-                gap: 10px;
+                gap: 12px;
                 transition: background-color 0.2s;
                 user-select: none;
             `;
@@ -1314,8 +1390,12 @@ function displaySearchResults(results, query = '') {
                 committees.slice(0, 2).map(c => c.committee).join(', ') : 
                 '위원회 정보 없음';
             
+            // 정당 색상 가져오기
+            const partyColor = pageState.partyData[member.party] ? 
+                pageState.partyData[member.party].color : '#999';
+            
             item.innerHTML = `
-                <img src="${photoUrl || '/api/placeholder/40/40'}" 
+                <img src="${photoUrl || 'https://raw.githubusercontent.com/moody1317/osbasicproject_4/refs/heads/main/chat.png'}" 
                      alt="${member.name}" 
                      class="search-result-photo" 
                      style="
@@ -1325,8 +1405,9 @@ function displaySearchResults(results, query = '') {
                         object-fit: cover;
                         flex-shrink: 0;
                         pointer-events: none;
+                        background-color: #f0f0f0;
                      "
-                     onerror="this.style.display='none'">
+                     onerror="this.src='https://raw.githubusercontent.com/moody1317/osbasicproject_4/refs/heads/main/chat.png'">
                 <div class="search-result-info" style="flex: 1; min-width: 0; pointer-events: none;">
                     <div class="search-result-name" style="
                         font-weight: bold;
@@ -1342,8 +1423,16 @@ function displaySearchResults(results, query = '') {
                         white-space: nowrap;
                         overflow: hidden;
                         text-overflow: ellipsis;
-                    ">${member.party} · ${committeesText}</div>
+                    ">${member.party} · ${member.district || committeesText}</div>
                 </div>
+                <div class="search-result-party-badge" style="
+                    width: 12px;
+                    height: 12px;
+                    border-radius: 50%;
+                    background-color: ${partyColor};
+                    flex-shrink: 0;
+                    pointer-events: none;
+                "></div>
             `;
             
             // 🔧 개선된 클릭 이벤트 처리
@@ -1628,6 +1717,7 @@ window.memberPageDebug = {
     getState: () => pageState,
     getCurrentMember: () => pageState.currentMember,
     getAPIErrors: () => pageState.apiErrors,
+    getPartyData: () => pageState.partyData,
     
     searchMember: (name) => {
         const member = pageState.memberList.find(m => m.name.includes(name));
@@ -1710,7 +1800,7 @@ window.memberPageDebug = {
     getMemberList: () => {
         console.log(`📋 전체 의원 목록 (${pageState.memberList.length}명):`);
         pageState.memberList.slice(0, 10).forEach((member, index) => {
-            console.log(`${index + 1}. ${member.name} (${member.party})`);
+            console.log(`${index + 1}. ${member.name} (${member.party}) - ${member.district || '지역구 없음'}`);
         });
         if (pageState.memberList.length > 10) {
             console.log(`... 외 ${pageState.memberList.length - 10}명`);
@@ -1734,6 +1824,7 @@ window.memberPageDebug = {
         console.log(`- API 서비스: ${!!window.APIService}`);
         console.log(`- API 오류: ${Object.keys(pageState.apiErrors).filter(k => pageState.apiErrors[k]).length}개`);
         console.log(`- 검색 중: ${pageState.isSearching}`);
+        console.log(`- 정당 색상 데이터: ${Object.keys(pageState.partyData).length}개`);
         
         if (pageState.currentMember) {
             const ranking = findMemberRanking(pageState.currentMember.name);
@@ -1801,12 +1892,38 @@ window.memberPageDebug = {
         } else {
             console.warn('❌ 실적 데이터가 없습니다');
         }
+    },
+    
+    // 🔧 검색 기능 테스트
+    testSearchFeatures: () => {
+        console.log('🔍 검색 기능 전체 테스트:');
+        console.log('1. 검색창 포커스 테스트...');
+        if (elements.searchInput) {
+            elements.searchInput.focus();
+            console.log('✅ 검색창 포커스 완료');
+        }
+        
+        console.log('2. 검색어 입력 테스트...');
+        if (elements.searchInput) {
+            elements.searchInput.value = '나경원';
+            elements.searchInput.dispatchEvent(new Event('input'));
+            console.log('✅ 검색어 입력 완료');
+        }
+        
+        console.log('3. 정당별 색상 확인...');
+        console.log('정당 색상 데이터:', pageState.partyData);
+        
+        console.log('4. 필터 기능 확인...');
+        if (elements.partyFilter) {
+            console.log('필터 옵션:', elements.partyFilter.options.length, '개');
+            console.log('현재 선택:', elements.partyFilter.value);
+        }
     }
 };
 
 // DOM 로드 완료 후 초기화
 document.addEventListener('DOMContentLoaded', function() {
-    console.log('📄 percent_member.js DOM 로드 완료 (검색 기능 개선 버전)');
+    console.log('📄 percent_member.js DOM 로드 완료 (검색 기능 대폭 개선 버전)');
     
     let attempts = 0;
     const maxAttempts = 30;
@@ -1832,4 +1949,4 @@ document.addEventListener('DOMContentLoaded', function() {
     waitForAPI();
 });
 
-console.log('📦 percent_member.js 로드 완료 (검색 기능 개선 버전)');
+console.log('📦 percent_member.js 로드 완료 (검색 기능 대폭 개선 버전)');
