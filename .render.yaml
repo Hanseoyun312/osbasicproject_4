@@ -7,5 +7,5 @@ services:
     envVars:
       - key: DJANGO_SETTINGS_MODULE
         value: config.settings
-      - key: GROQ_API_KEY
-        value: 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
+      - key: GEMINI_API_KEY
+        value: AIzaSyDgLGaVnT6es2kXuuEyjI_tgSi1sbHdWRo
