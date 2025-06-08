@@ -11,7 +11,6 @@ import json
 load_dotenv()
 
 GROQ_API_KEY = os.getenv("GROQ_API_KEY")
-print("GROQ_API_KEY:", GROQ_API_KEY)
 
 BASE_DIR = os.path.dirname(__file__)
 RANKING_MEMBERS_DB = os.path.join(BASE_DIR, '..', 'ranking_members.db')
