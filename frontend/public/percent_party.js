@@ -1,7 +1,7 @@
-// 정당 상세정보 페이지 (Django API 연동 + 퍼센트 정규화 + styles.css 색상 적용 버전)
+// 정당 상세정보 페이지 (Django API 연동 + 퍼센트 정규화 + styles.css 색상 적용 버전 - 가중치 반영 제거)
 
 document.addEventListener('DOMContentLoaded', function() {
-    console.log('🚀 정당 상세 페이지 로드 시작 (styles.css 색상 적용 + 최적화된 퍼센트 기준)');
+    console.log('🚀 정당 상세 페이지 로드 시작 (styles.css 색상 적용 + 최적화된 퍼센트 기준 - 가중치 반영 없음)');
 
     // === 🔧 페이지 상태 관리 ===
     let pageState = {
@@ -805,128 +805,6 @@ document.addEventListener('DOMContentLoaded', function() {
         updateStatisticsSection(partyStatistics, partyName);
     }
 
-    // === 🔄 가중치 변경 실시간 업데이트 시스템 ===
-
-    // 가중치 변경 감지 및 자동 새로고침
-    function setupWeightChangeListener() {
-        try {
-            console.log('[PercentParty] 🔄 가중치 변경 감지 시스템 설정...');
-            
-            // 1. localStorage 이벤트 감지 (다른 페이지에서 가중치 변경 시)
-            window.addEventListener('storage', function(event) {
-                if (event.key === 'weight_change_event' && event.newValue) {
-                    try {
-                        const changeData = JSON.parse(event.newValue);
-                        console.log('[PercentParty] 📢 가중치 변경 감지:', changeData);
-                        handleWeightUpdate(changeData, 'localStorage');
-                    } catch (e) {
-                        console.warn('[PercentParty] 가중치 변경 데이터 파싱 실패:', e);
-                    }
-                }
-            });
-            
-            // 2. BroadcastChannel 감지 (최신 브라우저)
-            if (typeof BroadcastChannel !== 'undefined') {
-                try {
-                    const weightChannel = new BroadcastChannel('weight_updates');
-                    weightChannel.addEventListener('message', function(event) {
-                        console.log('[PercentParty] 📡 BroadcastChannel 가중치 변경 감지:', event.data);
-                        handleWeightUpdate(event.data, 'BroadcastChannel');
-                    });
-                    
-                    // 페이지 언로드 시 채널 정리
-                    window.addEventListener('beforeunload', () => {
-                        weightChannel.close();
-                    });
-                    
-                    console.log('[PercentParty] ✅ BroadcastChannel 설정 완료');
-                } catch (e) {
-                    console.warn('[PercentParty] BroadcastChannel 설정 실패:', e);
-                }
-            }
-            
-            // 3. 커스텀 이벤트 감지 (같은 페이지 내)
-            document.addEventListener('weightDataUpdate', function(event) {
-                console.log('[PercentParty] 🎯 커스텀 이벤트 가중치 변경 감지:', event.detail);
-                handleWeightUpdate(event.detail, 'customEvent');
-            });
-            
-            // 4. 주기적 체크 (폴백)
-            let lastWeightCheckTime = localStorage.getItem('last_weight_update') || '0';
-            setInterval(function() {
-                const currentCheckTime = localStorage.getItem('last_weight_update') || '0';
-                
-                if (currentCheckTime !== lastWeightCheckTime && currentCheckTime !== '0') {
-                    console.log('[PercentParty] ⏰ 주기적 체크로 가중치 변경 감지');
-                    lastWeightCheckTime = currentCheckTime;
-                    
-                    const changeData = {
-                        type: 'weights_updated',
-                        timestamp: new Date(parseInt(currentCheckTime)).toISOString(),
-                        source: 'periodic_check'
-                    };
-                    
-                    handleWeightUpdate(changeData, 'periodicCheck');
-                }
-            }, 5000);
-            
-            console.log('[PercentParty] ✅ 가중치 변경 감지 시스템 설정 완료');
-            
-        } catch (error) {
-            console.error('[PercentParty] ❌ 가중치 변경 감지 시스템 설정 실패:', error);
-        }
-    }
-
-    // 가중치 업데이트 처리 함수
-    async function handleWeightUpdate(changeData, source) {
-        try {
-            if (pageState.isLoading) {
-                console.log('[PercentParty] 🔄 이미 로딩 중이므로 가중치 업데이트 스킵');
-                return;
-            }
-            
-            console.log(`[PercentParty] 🔄 가중치 업데이트 처리 시작 (${source})`);
-            
-            // 사용자에게 업데이트 알림
-            showNotification('가중치가 변경되었습니다. 데이터를 새로고침합니다...', 'info');
-            
-            // 1초 딜레이 후 데이터 새로고침 (서버에서 가중치 처리 시간 고려)
-            setTimeout(async () => {
-                try {
-                    // 새로운 데이터로 업데이트
-                    await fetchPartyData(pageState.currentParty);
-                    
-                    console.log('[PercentParty] ✅ 가중치 업데이트 완료');
-                    showNotification(`새로운 가중치가 적용되었습니다! (기준: 본회의 ${PERCENTAGE_CRITERIA.PLENARY_BILLS_MAX}건, 청원 ${PERCENTAGE_CRITERIA.PETITION_PROPOSAL_MAX}건) 🎉`, 'success');
-                    
-                    // 응답 전송 (WeightSync 모니터링용)
-                    try {
-                        const response = {
-                            page: 'percent_party.html',
-                            timestamp: new Date().toISOString(),
-                            success: true,
-                            source: source,
-                            currentParty: pageState.currentParty,
-                            criteria: PERCENTAGE_CRITERIA
-                        };
-                        localStorage.setItem('weight_refresh_response', JSON.stringify(response));
-                        setTimeout(() => localStorage.removeItem('weight_refresh_response'), 100);
-                    } catch (e) {
-                        console.warn('[PercentParty] 응답 전송 실패:', e);
-                    }
-                    
-                } catch (error) {
-                    console.error('[PercentParty] ❌ 가중치 업데이트 데이터 로드 실패:', error);
-                    showNotification('가중치 업데이트에 실패했습니다. 다시 시도해주세요.', 'error');
-                }
-            }, 1000);
-            
-        } catch (error) {
-            console.error('[PercentParty] ❌ 가중치 업데이트 처리 실패:', error);
-            showNotification('가중치 업데이트 처리에 실패했습니다.', 'error');
-        }
-    }
-
     // === 🔧 정당 변경 및 이벤트 처리 ===
 
     // 정당 변경 처리
@@ -993,31 +871,17 @@ document.addEventListener('DOMContentLoaded', function() {
         await fetchPartyData(selectedParty);
     }
 
-    // === 🔧 전역 함수 등록 (WeightSync 호환) ===
+    // === 🔧 전역 함수 등록 (기본 새로고침만 제공) ===
 
-    // WeightSync 연동 함수들
+    // 수동 새로고침 기능만 제공 (가중치 업데이트 관련 제거)
     window.refreshPartyDetailData = function() {
         console.log('[PercentParty] 🔄 수동 새로고침 요청');
         return fetchPartyData(pageState.currentParty);
     };
 
     window.refreshPartyDetails = function() {
-        console.log('[PercentParty] 🔄 수동 새로고침 요청 (WeightSync 호환)');
+        console.log('[PercentParty] 🔄 수동 새로고침 요청');
         return fetchPartyData(pageState.currentParty);
-    };
-
-    window.updatePartyDetails = function(newData) {
-        console.log('[PercentParty] 📊 외부 데이터로 업데이트:', newData);
-        
-        if (newData && typeof newData === 'object') {
-            const chartData = mapApiDataToChartFormat(newData, pageState.currentParty);
-            updateChartFromData(chartData, pageState.currentParty);
-            showNotification('데이터가 업데이트되었습니다', 'success');
-        }
-    };
-
-    window.updatePartyDetailData = function(newData) {
-        return window.updatePartyDetails(newData);
     };
 
     // 브라우저 뒤로/앞으로 버튼 처리
@@ -1035,7 +899,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // === 🚀 페이지 초기화 ===
     async function initializePage() {  
-        console.log('[PercentParty] 📊 정당 상세 페이지 초기화 중...');
+        console.log('[PercentParty] 📊 정당 상세 페이지 초기화 중... (가중치 반영 없음)');
         
         try {
             // URL 파라미터에서 정당명 가져오기
@@ -1045,9 +909,6 @@ document.addEventListener('DOMContentLoaded', function() {
             // 초기 정당 설정
             const initialParty = selectedPartyFromUrl || '더불어민주당';
             pageState.currentParty = initialParty;
-            
-            // 🔄 가중치 변경 감지 설정
-            setupWeightChangeListener();
             
             // 드롭다운 메뉴 토글
             const dropdownBtn = document.querySelector('.dropdown-btn');
@@ -1133,7 +994,7 @@ document.addEventListener('DOMContentLoaded', function() {
             console.log('[PercentParty] 📊 정당 상세 페이지 정보:');
             console.log('- 현재 정당:', pageState.currentParty);
             console.log('- APIService 상태:', window.APIService?._isReady ? '연결됨' : '연결 안됨');
-            console.log('- 가중치 변경 감지: 활성화됨');
+            console.log('- 가중치 변경 감지: 비활성화됨 (제거됨)');
             console.log('- HTML 순서와 매핑:', statisticsConfig.map(c => c.label));
             console.log('- 성과 데이터:', Object.keys(pageState.partyPerformanceData).length > 0 ? '로드됨' : '미로드');
             console.log('- 랭킹 데이터:', Object.keys(pageState.partyRankingData).length > 0 ? '로드됨' : '미로드');
@@ -1149,15 +1010,6 @@ document.addEventListener('DOMContentLoaded', function() {
                 const value = statsItems[index]?.querySelector('.value')?.textContent;
                 console.log(`${index + 1}. ${config.label} (${config.key}): ${label} = ${value}`);
             });
-        },
-        simulateWeightChange: () => {
-            console.log('[PercentParty] 🔧 가중치 변경 시뮬레이션...');
-            const changeData = {
-                type: 'weights_updated',
-                timestamp: new Date().toISOString(),
-                source: 'debug_simulation'
-            };
-            handleWeightUpdate(changeData, 'debug');
         },
         testNormalization: (testData) => {
             console.log('[PercentParty] 🔧 퍼센트 정규화 테스트 (최적화된 기준):');
@@ -1212,7 +1064,7 @@ document.addEventListener('DOMContentLoaded', function() {
     // 초기화 실행
     initializePage();
 
-    console.log('[PercentParty] ✅ percent_party.js 로드 완료 (styles.css 색상 적용 + 최적화된 퍼센트 기준)');
+    console.log('[PercentParty] ✅ percent_party.js 로드 완료 (styles.css 색상 적용 + 최적화된 퍼센트 기준 - 가중치 반영 제거)');
     console.log('[PercentParty] 🔗 API 모드: Django API 직접 연동');
     console.log('[PercentParty] 🎨 색상 시스템: styles.css 정당별 색상 팔레트 사용');
     console.log('[PercentParty] 📊 최적화된 퍼센트 기준:');
@@ -1222,14 +1074,17 @@ document.addEventListener('DOMContentLoaded', function() {
     console.log('[PercentParty]   - 위원장:', `있으면 ${PERCENTAGE_CRITERIA.COMMITTEE_CHAIR_PERCENT}% (고정)`);
     console.log('[PercentParty]   - 간사:', `있으면 ${PERCENTAGE_CRITERIA.SECRETARY_PERCENT}% (고정)`);
     console.log('[PercentParty]   - 무효표/기권:', `최대 ${PERCENTAGE_CRITERIA.INVALID_VOTE_MAX}%로 제한`);
-    console.log('[PercentParty] 🔧 주요 개선사항:');
-    console.log('[PercentParty]   - styles.css 정당별 색상 팔레트 완전 적용');
-    console.log('[PercentParty]   - 더 현실적인 퍼센트 변환 기준 설정');
-    console.log('[PercentParty]   - 위원장/간사 중요도 상향 조정 (8%/5%)');
-    console.log('[PercentParty]   - 가중치 변경 실시간 감지 및 업데이트');
+    console.log('[PercentParty] 🔧 주요 변경사항:');
+    console.log('[PercentParty]   - 가중치 변경 감지 시스템 완전 제거');
+    console.log('[PercentParty]   - setupWeightChangeListener() 함수 제거');
+    console.log('[PercentParty]   - handleWeightUpdate() 함수 제거'); 
+    console.log('[PercentParty]   - 가중치 관련 이벤트 리스너들 제거');
+    console.log('[PercentParty]   - WeightSync 호환 업데이트 함수들 제거');
+    console.log('[PercentParty]   - 수동 새로고침 기능만 유지');
     console.log('[PercentParty] 🔧 디버그 명령어:');
     console.log('[PercentParty]   - window.partyPageDebug.showInfo() : 페이지 정보 확인');
+    console.log('[PercentParty]   - window.partyPageDebug.refreshData() : 수동 새로고침');
     console.log('[PercentParty]   - window.partyPageDebug.testColorSystem() : 색상 시스템 테스트');
     console.log('[PercentParty]   - window.partyPageDebug.getCriteria() : 퍼센트 기준 확인');
-    console.log('[PercentParty]   - window.partyPageDebug.testNormalization(data) : 최적화된 정규화 테스트');
+    console.log('[PercentParty]   - window.partyPageDebug.testNormalization(data) : 정규화 테스트');
 });
