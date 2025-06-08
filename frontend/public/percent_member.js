@@ -16,6 +16,13 @@ let pageState = {
     apiErrors: {}
 };
 
+// 기본 국회의원 정보
+const DEFAULT_MEMBER = {
+    name: '나경원',
+    party: '국민의힘',
+    mona_cd: 'DEFAULT_001',
+    homepage: ''
+};
 
 // DOM 요소
 let elements = {};
@@ -295,6 +302,12 @@ function selectMember(member) {
     if (searchInput) {
         searchInput.value = member.name;
     }
+
+    // URL 업데이트
+    updateURL(member.name);
+
+    // ⭐ 강제로 popstate 이벤트 발생시켜서 페이지 상태 갱신
+    window.dispatchEvent(new PopStateEvent('popstate'));
 
     // 검색 결과 숨김
     hideSearchResults();
