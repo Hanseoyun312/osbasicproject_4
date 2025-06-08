@@ -10,6 +10,9 @@ document.addEventListener('DOMContentLoaded', function() {
     const urlParams = new URLSearchParams(window.location.search);
     const petitionId = urlParams.get('petition_id');
 
+    // 전역 변수로 현재 청원 정보 저장
+    let currentPetitionData = null;
+
     // 로딩 상태 표시
     let isLoading = false;
 
@@ -154,13 +157,19 @@ document.addEventListener('DOMContentLoaded', function() {
                 introducers.find(intro => intro.petition && intro.petition.toString().includes(petitionId)) : null;
 
             // API 데이터를 상세 페이지용으로 변환
-            return transformToDetailedPetition(petition, introducerInfo);
+            const detailData = transformToDetailedPetition(petition, introducerInfo);
+            
+            // 전역 변수에 저장
+            currentPetitionData = detailData;
+            return detailData;
 
         } catch (error) {
             console.error('❌ 청원 상세 정보 로드 실패:', error);
             
             // 기본 청원 정보 반환 (폴백)
-            return getDefaultPetition();
+            const fallbackData = getDefaultPetition();
+            currentPetitionData = fallbackData;
+            return fallbackData;
         }
     }
 
@@ -327,8 +336,45 @@ document.addEventListener('DOMContentLoaded', function() {
             committee: '미정',
             petitionNumber: petitionId || '22000XX',
             sessionInfo: '제22대 (2024~2028)',
-            currentStep: 1
+            currentStep: 1,
+            link: ''
         };
+    }
+
+    // 홈 아이콘 클릭 이벤트 설정 (수정된 버전)
+    function setupHomeIcon() {
+        const homeIcon = document.querySelector('.home-icon');
+        if (homeIcon) {
+            homeIcon.addEventListener('click', function(e) {
+                e.preventDefault();
+                
+                console.log('🏠 홈 아이콘 클릭됨');
+                
+                // 현재 청원 데이터에서 링크 확인
+                let targetUrl = '';
+                
+                if (currentPetitionData && currentPetitionData.link) {
+                    targetUrl = currentPetitionData.link;
+                    console.log('✅ API에서 가져온 링크 사용:', targetUrl);
+                } else {
+                    targetUrl = 'petition.html';
+                    console.log('⚠️ 링크가 없어서 기본 페이지로 이동:', targetUrl);
+                }
+                
+                // 외부 링크인지 확인
+                if (targetUrl.startsWith('http://') || targetUrl.startsWith('https://')) {
+                    console.log('🔗 외부 링크로 이동:', targetUrl);
+                    window.open(targetUrl, '_blank');
+                } else {
+                    console.log('📄 내부 페이지로 이동:', targetUrl);
+                    window.location.href = targetUrl;
+                }
+            });
+            
+            console.log('✅ 홈 아이콘 이벤트 리스너 설정 완료');
+        } else {
+            console.warn('⚠️ 홈 아이콘을 찾을 수 없습니다');
+        }
     }
 
     // 페이지 정보 업데이트
@@ -378,6 +424,9 @@ document.addEventListener('DOMContentLoaded', function() {
             
             // 진행 단계 업데이트
             updateProgressSteps(petition.currentStep);
+            
+            // 홈 아이콘 이벤트 설정 (데이터 로드 후)
+            setupHomeIcon();
             
             console.log(`✅ 청원 상세 정보 로드 완료: [${petition.petitionNumber}] ${petition.title}`);
             
@@ -477,16 +526,6 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
 
-    // 홈 아이콘 클릭 이벤트
-    const homeIcon = document.querySelector('.home-icon');
-    if (homeIcon) {
-        homeIcon.addEventListener('click', function(e) {
-            e.preventDefault();
-            const targetUrl = apiData.LINK_URL || 'petition.html';
-            window.location.href = targetUrl;  
-        });
-    }
-
     // 진행 단계 툴팁 추가
     function addStepTooltips() {
         const steps = document.querySelectorAll('.step');
@@ -559,6 +598,24 @@ document.addEventListener('DOMContentLoaded', function() {
         loadPetitionInfo();
     };
 
+    // 디버그 유틸리티 (전역)
+    window.petitionDetailDebug = {
+        getCurrentPetitionData: () => currentPetitionData,
+        reloadData: () => loadPetitionInfo(),
+        testHomeIcon: () => {
+            console.log('🔗 홈 아이콘 테스트:');
+            console.log('- currentPetitionData?.link:', currentPetitionData?.link);
+            console.log('- petitionId:', petitionId);
+        },
+        showInfo: () => {
+            console.log('📊 청원 상세 페이지 정보:');
+            console.log(`- 청원 ID: ${petitionId}`);
+            console.log(`- 현재 청원 데이터:`, currentPetitionData);
+            console.log(`- API 서비스: ${!!window.APIService}`);
+            console.log('- URL 파라미터:', Object.fromEntries(urlParams.entries()));
+        }
+    };
+
     // 초기화 실행
     console.log(`📋 청원 상세 페이지 초기화 중... (ID: ${petitionId})`);
     
@@ -568,5 +625,9 @@ document.addEventListener('DOMContentLoaded', function() {
     // 청원 정보 로드
     loadPetitionInfo();
     
-    console.log('✅ 청원 상세 페이지 초기화 완료 (API 연결)');
+    console.log('✅ 청원 상세 페이지 초기화 완료 (수정된 홈 아이콘 연결)');
+    console.log('🔧 디버그 명령어:');
+    console.log('  - window.petitionDetailDebug.showInfo() : 페이지 정보 확인');
+    console.log('  - window.petitionDetailDebug.testHomeIcon() : 홈 아이콘 링크 테스트');
+    console.log('  - window.petitionDetailDebug.reloadData() : 데이터 새로고침');
 });
