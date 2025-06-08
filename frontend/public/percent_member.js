@@ -664,17 +664,17 @@ document.getElementById('searchButton').addEventListener('click', () => {
 });
 
 // ✅ 2. 페이지 로드 시 URL에서 ?member=값 있으면 자동 적용
-window.addEventListener('popstate', () => {
-    const params = new URLSearchParams(window.location.search);
-    const name = params.get('member');
+// popstate 이벤트 처리 (주소창 수정 시 작동)
+window.addEventListener('popstate', function(event) {
+    const name = getMemberFromUrl();
+    if (!name) return;
 
-    if (name) {
-        const input = document.getElementById('memberSearchInput');
-        input.value = name;
-
-        loadMemberByName(name);
+    const member = allMembers.find(m => m.name === name);
+    if (member) {
+        selectMember(member);
     }
 });
+
 
 // ✅ 3. 이름으로 의원 찾아서 선택
 function loadMemberByName(name) {
