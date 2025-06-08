@@ -114,7 +114,7 @@ def chatbot_ask(request):
         (관련 정보가 명확하지 않거나 없다면, '관련 데이터가 없습니다.'라고 해줘)
         """
 
-        gemini_url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent"
+        gemini_url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent"
         headers = {
             "Content-Type": "application/json",
             "Authorization": f"Bearer {GEMINI_API_KEY}"
