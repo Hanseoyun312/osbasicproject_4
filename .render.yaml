@@ -7,6 +7,5 @@ services:
     envVars:
       - key: DJANGO_SETTINGS_MODULE
         value: backend.config.settings
-    buildFilter:
-      paths:
-        - backend/**
+      - key: PYTHONPATH
+        value: backend
