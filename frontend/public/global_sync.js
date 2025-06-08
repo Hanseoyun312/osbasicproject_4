@@ -58,7 +58,7 @@
             COMPARE_PARTIES: '/compare_parties/',
             
             // === 챗봇 ===
-            CHATBOT: '/api/chatbot/',
+            CHATBOT: '/chatbot/ask/',
             
             // === 설정 ===
             UPDATE_WEIGHTS: '/performance/api/update_weights/',

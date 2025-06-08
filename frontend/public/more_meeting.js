@@ -653,8 +653,8 @@ document.addEventListener('DOMContentLoaded', function() {
         if (homeIcon) {
             homeIcon.addEventListener('click', function(e) {
                 e.preventDefault();
-                console.log('🏠 본회의 현황 페이지로 이동');
-                window.location.href = 'meeting.html';
+                const targetUrl = foundBill.DETAIL_LINK || 'petition.html';
+                window.location.href = targetUrl;  
             });
         }
     }
@@ -805,37 +805,6 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
 
-    // 투표 정보에 애니메이션 효과 추가
-    function addVoteAnimations() {
-        // 투표 결과 카운터 애니메이션
-        const voteItems = document.querySelectorAll('.vote-item');
-        voteItems.forEach((item, index) => {
-            item.style.opacity = '0';
-            item.style.transform = 'translateY(20px)';
-            
-            setTimeout(() => {
-                item.style.transition = 'all 0.5s ease';
-                item.style.opacity = '1';
-                item.style.transform = 'translateY(0)';
-            }, index * 100);
-        });
-
-        // 정당별 투표 현황 애니메이션
-        const partyItems = document.querySelectorAll('.party-vote-item');
-        partyItems.forEach((item, index) => {
-            item.style.opacity = '0';
-            item.style.transform = 'translateX(-20px)';
-            
-            setTimeout(() => {
-                item.style.transition = 'all 0.5s ease';
-                item.style.opacity = '1';
-                item.style.transform = 'translateX(0)';
-            }, 500 + (index * 100));
-        });
-        
-        console.log('📊 투표 애니메이션 설정 완료');
-    }
-
     // 데이터 새로고침 함수 (전역)
     window.refreshMoreMeetingData = function() {
         console.log('🔄 본회의 상세 데이터 새로고침');
@@ -966,14 +935,10 @@ document.addEventListener('DOMContentLoaded', function() {
     // 초기화 실행
     setTimeout(initializePage, 100);
 
-    // 투표 애니메이션 실행 (지연)
-    setTimeout(executeVoteAnimations, 800);
-
     console.log('✅ 본회의 상세 페이지 스크립트 로드 완료 (업데이트된 API 연결)');
     console.log('🔧 디버그 명령어:');
     console.log('  - window.moreMeetingDebug.showInfo() : 페이지 정보 확인');
     console.log('  - window.moreMeetingDebug.reloadData() : 데이터 새로고침');
-    console.log('  - window.moreMeetingDebug.testVoteResult() : 투표 결과 테스트');
     console.log('  - window.moreMeetingDebug.testDataMapping() : 데이터 매핑 테스트');
     console.log('  - window.refreshMoreMeetingData() : 전체 새로고침');
     console.log('📊 법안 데이터:', billData);

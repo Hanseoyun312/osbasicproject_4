@@ -137,5 +137,3 @@ def chatbot_api(request):
             return JsonResponse({"response": f"오류: {str(e)}"})
     return JsonResponse({"response": "POST 요청을 보내주세요."})
 
-def chatbot_page(request):
-    return render(request, "chatbot/test.html")
