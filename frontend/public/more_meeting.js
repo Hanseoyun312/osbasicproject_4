@@ -22,6 +22,9 @@ document.addEventListener('DOMContentLoaded', function() {
         link: urlParams.get('link') || ''
     };
 
+    // 전역 변수로 현재 법안 정보 저장
+    let currentBillData = null;
+
     // 로딩 상태 관리
     let isLoading = false;
 
@@ -89,7 +92,7 @@ document.addEventListener('DOMContentLoaded', function() {
             if (foundBill) {
                 console.log('✅ API에서 법안 상세 정보 발견:', foundBill.BILL_NM);
                 
-                return {
+                const detailData = {
                     id: foundBill.BILL_ID || billId,
                     billNumber: generateBillNumber(foundBill.age || '22', foundBill.BILL_ID || billId),
                     title: foundBill.BILL_NM || billData.title,
@@ -102,8 +105,13 @@ document.addEventListener('DOMContentLoaded', function() {
                     partyVotes: generatePartyVotes(foundBill.PROC_RESULT_CD || foundBill.PRO_RESULT_CD || billData.status),
                     relatedDocuments: [],
                     link: foundBill.DETAIL_LINK || billData.link || '',
-                    age: foundBill.age || '22'
+                    age: foundBill.age || '22',
+                    rawApiData: foundBill // 원본 API 데이터 보관
                 };
+                
+                // 전역 변수에 저장
+                currentBillData = detailData;
+                return detailData;
             } else {
                 console.warn('⚠️ API에서 해당 법안을 찾을 수 없습니다');
                 throw new Error('해당 법안을 찾을 수 없습니다');
@@ -113,13 +121,16 @@ document.addEventListener('DOMContentLoaded', function() {
             console.error('❌ 법안 상세 정보 로드 실패:', error);
             
             // API 실패 시 URL 파라미터 데이터 + 샘플 데이터 사용
-            return {
+            const fallbackData = {
                 ...billData,
                 sessionInfo: generateSessionInfo(billData.age || '22'),
                 voteResult: generateVoteResult(billData.status),
                 partyVotes: generatePartyVotes(billData.status),
                 relatedDocuments: []
             };
+            
+            currentBillData = fallbackData;
+            return fallbackData;
         }
     }
 
@@ -445,6 +456,9 @@ document.addEventListener('DOMContentLoaded', function() {
 
         // 투표 정보 업데이트
         updateVoteSection(data);
+
+        // 홈 아이콘 이벤트 설정 (데이터 로드 후)
+        setupHomeIcon();
         
         console.log('✅ 페이지 내용 업데이트 완료');
     }
@@ -647,15 +661,42 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
 
-    // 홈 아이콘 클릭 이벤트
+    // 홈 아이콘 클릭 이벤트 (수정된 버전)
     function setupHomeIcon() {
         const homeIcon = document.querySelector('.home-icon');
         if (homeIcon) {
             homeIcon.addEventListener('click', function(e) {
                 e.preventDefault();
-                const targetUrl = foundBill.DETAIL_LINK || 'petition.html';
-                window.location.href = targetUrl;  
+                
+                console.log('🏠 홈 아이콘 클릭됨');
+                
+                // 현재 법안 데이터에서 링크 확인
+                let targetUrl = '';
+                
+                if (currentBillData && currentBillData.link) {
+                    targetUrl = currentBillData.link;
+                    console.log('✅ API에서 가져온 링크 사용:', targetUrl);
+                } else if (billData.link) {
+                    targetUrl = billData.link;
+                    console.log('✅ URL 파라미터 링크 사용:', targetUrl);
+                } else {
+                    targetUrl = 'meeting.html';
+                    console.log('⚠️ 링크가 없어서 기본 페이지로 이동:', targetUrl);
+                }
+                
+                // 외부 링크인지 확인
+                if (targetUrl.startsWith('http://') || targetUrl.startsWith('https://')) {
+                    console.log('🔗 외부 링크로 이동:', targetUrl);
+                    window.open(targetUrl, '_blank');
+                } else {
+                    console.log('📄 내부 페이지로 이동:', targetUrl);
+                    window.location.href = targetUrl;
+                }
             });
+            
+            console.log('✅ 홈 아이콘 이벤트 리스너 설정 완료');
+        } else {
+            console.warn('⚠️ 홈 아이콘을 찾을 수 없습니다');
         }
     }
     
@@ -805,6 +846,37 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
 
+    // 투표 정보에 애니메이션 효과 추가
+    function addVoteAnimations() {
+        // 투표 결과 카운터 애니메이션
+        const voteItems = document.querySelectorAll('.vote-item');
+        voteItems.forEach((item, index) => {
+            item.style.opacity = '0';
+            item.style.transform = 'translateY(20px)';
+            
+            setTimeout(() => {
+                item.style.transition = 'all 0.5s ease';
+                item.style.opacity = '1';
+                item.style.transform = 'translateY(0)';
+            }, index * 100);
+        });
+
+        // 정당별 투표 현황 애니메이션
+        const partyItems = document.querySelectorAll('.party-vote-item');
+        partyItems.forEach((item, index) => {
+            item.style.opacity = '0';
+            item.style.transform = 'translateX(-20px)';
+            
+            setTimeout(() => {
+                item.style.transition = 'all 0.5s ease';
+                item.style.opacity = '1';
+                item.style.transform = 'translateX(0)';
+            }, 500 + (index * 100));
+        });
+        
+        console.log('📊 투표 애니메이션 설정 완료');
+    }
+
     // 데이터 새로고침 함수 (전역)
     window.refreshMoreMeetingData = function() {
         console.log('🔄 본회의 상세 데이터 새로고침');
@@ -840,6 +912,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 billData.sessionInfo = generateSessionInfo(billData.age || '22');
                 billData.voteResult = generateVoteResult(billData.status);
                 billData.partyVotes = generatePartyVotes(billData.status);
+                currentBillData = billData;
             }
             
             // 페이지 내용 업데이트
@@ -858,7 +931,6 @@ document.addEventListener('DOMContentLoaded', function() {
             }
             
             // UI 기능 설정
-            setupHomeIcon();
             setupStepTooltips();
             setupInfoSections();
             addPageAnimations();
@@ -881,7 +953,14 @@ document.addEventListener('DOMContentLoaded', function() {
     // 디버그 유틸리티 (전역)
     window.moreMeetingDebug = {
         getBillData: () => billData,
+        getCurrentBillData: () => currentBillData,
         reloadData: () => initializePage(),
+        testHomeIcon: () => {
+            console.log('🔗 홈 아이콘 테스트:');
+            console.log('- currentBillData?.link:', currentBillData?.link);
+            console.log('- billData.link:', billData.link);
+            console.log('- URL 파라미터 link:', urlParams.get('link'));
+        },
         testVoteResult: () => {
             const sampleResult = generateVoteResult(billData.status || '가결');
             if (sampleResult) {
@@ -894,26 +973,6 @@ document.addEventListener('DOMContentLoaded', function() {
                 updatePartyVotes(sampleVotes);
             }
         },
-        testDataMapping: () => {
-            console.log('🔍 데이터 매핑 테스트:');
-            const sampleApiData = {
-                BILL_ID: 'TEST_001',
-                BILL_NM: '테스트 법안명',
-                PROPOSER: '테스트 의원',
-                RGS_PROC_DT: '20240315',
-                PROC_RESULT_CD: '원안가결',
-                DETAIL_LINK: 'http://test.com',
-                age: '22'
-            };
-            
-            console.log('API 데이터 구조:', sampleApiData);
-            console.log('- BILL_NM:', sampleApiData.BILL_NM, '→ title');
-            console.log('- PROPOSER:', sampleApiData.PROPOSER, '→ proposer');
-            console.log('- RGS_PROC_DT:', sampleApiData.RGS_PROC_DT, '→ date');
-            console.log('- PROC_RESULT_CD:', sampleApiData.PROC_RESULT_CD, '→ status');
-            console.log('- DETAIL_LINK:', sampleApiData.DETAIL_LINK, '→ link');
-            console.log('- age:', sampleApiData.age, '→ age');
-        },
         showInfo: () => {
             console.log('📊 본회의 상세 페이지 정보:');
             console.log(`- 법안 ID: ${billData.id}`);
@@ -924,22 +983,22 @@ document.addEventListener('DOMContentLoaded', function() {
             console.log(`- 위원회: ${billData.committee}`);
             console.log(`- 대수: ${billData.age}`);
             console.log(`- 링크: ${billData.link}`);
+            console.log(`- 현재 법안 데이터 링크: ${currentBillData?.link}`);
             console.log(`- API 서비스: ${!!window.APIService}`);
             console.log('- URL 파라미터:', Object.fromEntries(urlParams.entries()));
-            console.log('- 데이터 매핑 정보:');
-            console.log('  * API 필드: BILL_NM, PROPOSER, RGS_PROC_DT, PROC_RESULT_CD/PRO_RESULT_CD, DETAIL_LINK, age');
-            console.log('  * 내부 필드: title, proposer, date, status, link, age');
         }
     };
 
     // 초기화 실행
     setTimeout(initializePage, 100);
 
-    console.log('✅ 본회의 상세 페이지 스크립트 로드 완료 (업데이트된 API 연결)');
+    // 투표 애니메이션 실행 (지연)
+    setTimeout(executeVoteAnimations, 800);
+
+    console.log('✅ 본회의 상세 페이지 스크립트 로드 완료 (수정된 홈 아이콘 연결)');
     console.log('🔧 디버그 명령어:');
     console.log('  - window.moreMeetingDebug.showInfo() : 페이지 정보 확인');
+    console.log('  - window.moreMeetingDebug.testHomeIcon() : 홈 아이콘 링크 테스트');
     console.log('  - window.moreMeetingDebug.reloadData() : 데이터 새로고침');
-    console.log('  - window.moreMeetingDebug.testDataMapping() : 데이터 매핑 테스트');
-    console.log('  - window.refreshMoreMeetingData() : 전체 새로고침');
     console.log('📊 법안 데이터:', billData);
 });

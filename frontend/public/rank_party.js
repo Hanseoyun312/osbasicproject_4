@@ -1,6 +1,6 @@
 /**
- * rank_party.js (v3.1.0) - 클라이언트 사이드 가중치 연동 정당 랭킹 시스템 (BroadcastChannel 안전 처리)
- * 개선사항: percent 페이지의 가중치를 받아서 클라이언트에서 정당 순위 재계산 + 안전한 채널 관리
+ * rank_party.js (v3.1.0) - 클라이언트 사이드 가중치 연동 정당 랭킹 시스템
+ * 개선사항: percent 페이지의 가중치를 받아서 클라이언트에서 정당 순위 재계산 + 통일된 채널명
  */
 
 document.addEventListener('DOMContentLoaded', function() {
@@ -116,7 +116,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
             }
 
-            // 새 채널 생성
+            // 🔧 통일된 채널명 사용 (v4)
             weightSyncState.realTimeUpdateChannel = new BroadcastChannel('client_weight_updates_v4');
             
             weightSyncState.realTimeUpdateChannel.addEventListener('message', async function(event) {
@@ -149,7 +149,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 setTimeout(createBroadcastChannel, 1000);
             });
             
-            console.log('[RankParty] ✅ BroadcastChannel 초기화 완료');
+            console.log('[RankParty] ✅ BroadcastChannel 초기화 완료 (v4)');
             return true;
             
         } catch (error) {
@@ -1468,7 +1468,7 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     };
 
-    // === 🛠️ 디버그 유틸리티 (개선된 버전) ===
+    // === 🛠️ 디버그 유틸리티 ===
     window.partyRankingDebug = {
         getState: () => ({
             partyData,
@@ -1483,6 +1483,7 @@ document.addEventListener('DOMContentLoaded', function() {
         getCurrentWeights: () => weightSyncState.currentWeights,
         getOriginalData: () => originalPartyData,
         
+        // 🔧 BroadcastChannel 관련 디버그
         recreateChannel: () => {
             console.log('[RankParty] BroadcastChannel 재생성 시도...');
             const success = createBroadcastChannel();

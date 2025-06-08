@@ -190,7 +190,7 @@ document.addEventListener('DOMContentLoaded', function() {
             sessionInfo: generateSessionInfo(apiData.PROPOSE_DT),
             committee: committee,
             currentStep: statusInfo.step,
-            link: apiData.LINK_URL || '',
+            link: apiData.DETAIL_LINK || '',
             rawData: apiData // 원본 데이터 보관
         };
     }

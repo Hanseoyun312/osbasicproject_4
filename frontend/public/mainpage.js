@@ -39,7 +39,7 @@ document.addEventListener('DOMContentLoaded', function() {
             '투표 결과 불일치': 'vote_mismatch_ratio'
         },
 
-        // 정규화 기준값들
+        // 정규화 기준값들 (rank_member.js와 동일)
         memberNormalizationBounds: {
             committee_secretary_count: { min: 0, max: 10 },
             invalid_vote_ratio: { min: 0, max: 100 },
@@ -82,7 +82,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
             }
 
-            // 새 채널 생성
+            // 🔧 통일된 채널명 사용
             mainPageState.realTimeUpdateChannel = new BroadcastChannel('client_weight_updates_v4');
             
             mainPageState.realTimeUpdateChannel.addEventListener('message', async function(event) {
@@ -115,7 +115,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 setTimeout(createBroadcastChannel, 1000);
             });
             
-            console.log('[MainPage] ✅ BroadcastChannel 초기화 완료');
+            console.log('[MainPage] ✅ BroadcastChannel 초기화 완료 (v4)');
             return true;
             
         } catch (error) {
@@ -176,13 +176,37 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
             });
             
-            // 3. 저장된 가중치 확인 및 로드
+            // 3. 🎯 percent 페이지 연결 확인 (능동적)
+            setTimeout(() => {
+                checkPercentPageConnection();
+                // 5초마다 연결 확인
+                setInterval(checkPercentPageConnection, 5000);
+            }, 1000);
+            
+            // 4. 저장된 가중치 확인 및 로드
             loadStoredWeights();
             
             console.log('[MainPage] ✅ 실시간 연동 시스템 초기화 완료');
             
         } catch (error) {
             console.error('[MainPage] 실시간 연동 시스템 초기화 실패:', error);
+        }
+    }
+
+    // === 🔍 percent 페이지 연결 확인 ===
+    function checkPercentPageConnection() {
+        try {
+            const success = safeBroadcast({
+                type: 'connection_check',
+                source: 'main_page',
+                timestamp: new Date().toISOString()
+            });
+            
+            if (!success) {
+                console.warn('[MainPage] percent 페이지 연결 확인 브로드캐스트 실패');
+            }
+        } catch (error) {
+            console.warn('[MainPage] percent 페이지 연결 확인 중 오류:', error);
         }
     }
 
@@ -233,6 +257,10 @@ document.addEventListener('DOMContentLoaded', function() {
             
             // 🧮 모든 점수 재계산
             await recalculateAllScores();
+            
+            // 연결 상태 업데이트
+            mainPageState.percentPageConnected = true;
+            updateConnectionStatus();
             
             // 성공 알림
             showWeightUpdateNotification('✅ 메인페이지 순위가 새로운 가중치로 업데이트되었습니다!', 'success', 4000);
@@ -319,12 +347,12 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
 
-    // === 🧮 의원 점수 재계산 ===
+    // === 🧮 의원 점수 재계산 (rank_member.js와 동일한 로직) ===
     async function recalculateMemberScores() {
         try {
             if (mainPageState.originalMemberData.length === 0) return;
             
-            // 정규화 기준값 계산
+            // rank_member.js와 동일한 정규화 기준값 계산
             const bounds = calculateMemberNormalizationBounds(mainPageState.originalMemberData);
             
             // 각 의원의 점수 재계산
@@ -356,7 +384,7 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
 
-    // === 🧮 유틸리티 함수들 ===
+    // === 🧮 유틸리티 함수들 (rank_member.js와 동일한 로직) ===
     
     // 정당 정규화 기준값 계산
     function calculatePartyNormalizationBounds(partyData) {
@@ -385,13 +413,13 @@ document.addEventListener('DOMContentLoaded', function() {
         return bounds;
     }
     
-    // 의원 정규화 기준값 계산
+    // 의원 정규화 기준값 계산 (rank_member.js와 동일)
     function calculateMemberNormalizationBounds(memberData) {
         const bounds = {};
         
         Object.values(WEIGHT_CALCULATOR.FIELD_MAPPING).forEach(field => {
             const values = memberData
-                .map(member => getMemberFieldValue(member, field))
+                .map(member => getFieldValue(member, field)) // rank_member.js와 동일한 함수명 사용
                 .filter(val => !isNaN(val) && val !== null && val !== undefined);
             
             if (values.length > 0) {
@@ -409,6 +437,7 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         });
         
+        console.log('[MainPage] 📊 의원 정규화 기준값:', bounds);
         return bounds;
     }
 
@@ -435,7 +464,7 @@ document.addEventListener('DOMContentLoaded', function() {
         return Math.round(finalScore * 10) / 10;
     }
 
-    // 의원 점수 계산
+    // 의원 점수 계산 (rank_member.js와 완전히 동일)
     function calculateMemberScore(member, weights, bounds) {
         let totalScore = 0;
         let totalWeight = 0;
@@ -444,18 +473,24 @@ document.addEventListener('DOMContentLoaded', function() {
             const fieldName = WEIGHT_CALCULATOR.FIELD_MAPPING[weightLabel];
             
             if (fieldName && bounds[fieldName]) {
-                const rawValue = getMemberFieldValue(member, fieldName);
+                const rawValue = getFieldValue(member, fieldName); // rank_member.js와 동일한 함수 사용
                 const normalizedValue = normalizeValue(rawValue, bounds[fieldName]);
                 const weightedValue = normalizedValue * weightValue;
                 
                 totalScore += weightedValue;
                 totalWeight += weightValue;
+                
+                // 디버그 로그 (첫 번째 의원만)
+                if (member.name === mainPageState.originalMemberData[0]?.name) {
+                    console.log(`[MainPage] 📊 ${member.name} - ${weightLabel}: raw=${rawValue}, norm=${normalizedValue.toFixed(3)}, weight=${weightValue}, weighted=${weightedValue.toFixed(3)}`);
+                }
             }
         });
         
         // 0-100 범위로 변환
         const finalScore = totalWeight > 0 ? (totalScore / totalWeight) * 100 : 0;
-        return Math.round(finalScore * 10) / 10;
+        
+        return Math.round(finalScore * 10) / 10; // 소수점 첫째자리까지
     }
 
     // 정당 필드값 추출
@@ -484,40 +519,62 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
 
-    // 의원 필드값 추출
-    function getMemberFieldValue(member, fieldName) {
+    // 의원 필드값 추출 (rank_member.js와 완전히 동일한 로직)
+    function getFieldValue(member, fieldName) {
+        // 다양한 필드명 매핑 시도
+        const possibleFields = [
+            fieldName,
+            // 성과 데이터에서
+            member._performance?.[fieldName],
+            // 랭킹 데이터에서
+            member._ranking?.[fieldName],
+            // 직접 필드에서
+            member[fieldName],
+            // 다른 필드명 변형들
+            member[fieldName.replace('_', '')],
+            member[fieldName.toUpperCase()],
+            member[fieldName.toLowerCase()]
+        ];
+        
+        for (const field of possibleFields) {
+            if (field !== undefined && field !== null && !isNaN(parseFloat(field))) {
+                return parseFloat(field);
+            }
+        }
+        
+        // 특별한 경우 처리
         switch (fieldName) {
             case 'attendance_rate':
-                return parseFloat(member.attendanceRate || member.attendance_rate || 85);
+                return parseFloat(member.attendanceRate || member.출석률 || 85);
             case 'bill_pass_sum':
-                return parseInt(member.billPassSum || member.bill_pass_sum || 0);
+                return parseInt(member.billPassSum || member.본회의가결 || 0);
             case 'petition_sum':
-                return parseInt(member.petitionSum || member.petition_sum || 0);
+                return parseInt(member.petitionSum || member.청원수 || 0);
             case 'petition_pass_sum':
-                return parseInt(member.petitionPassSum || member.petition_pass_sum || 0);
+                return parseInt(member.petitionPassSum || member.청원가결 || 0);
             case 'committee_leader_count':
-                return parseInt(member.chairmanCount || member.committee_leader_count || 0);
+                return parseInt(member.chairmanCount || member.위원장수 || 0);
             case 'committee_secretary_count':
-                return parseInt(member.secretaryCount || member.committee_secretary_count || 0);
+                return parseInt(member.secretaryCount || member.간사수 || 0);
             case 'invalid_vote_ratio':
-                return parseFloat(member.invalidVoteRatio || member.invalid_vote_ratio || 2);
+                return parseFloat(member.invalidVoteRatio || member.무효표비율 || 2);
             case 'vote_match_ratio':
-                return parseFloat(member.voteMatchRatio || member.vote_match_ratio || 85);
+                return parseFloat(member.voteMatchRatio || member.표결일치율 || 85);
             case 'vote_mismatch_ratio':
-                return parseFloat(member.voteMismatchRatio || member.vote_mismatch_ratio || 15);
+                return parseFloat(member.voteMismatchRatio || member.표결불일치율 || 15);
             default:
                 return 0;
         }
     }
 
-    // 값 정규화 (0-1 범위로)
+    // 값 정규화 (0-1 범위로) - rank_member.js와 동일
     function normalizeValue(value, bounds) {
         if (isNaN(value) || bounds.max === bounds.min) {
             return 0;
         }
         
         const normalized = (value - bounds.min) / (bounds.max - bounds.min);
-        return Math.max(0, Math.min(1, normalized));
+        return Math.max(0, Math.min(1, normalized)); // 0-1 범위로 제한
     }
 
     // === 📊 점수 업데이트 정보 표시 ===
@@ -670,7 +727,9 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
 
-    // === API 연결 상태 확인 ===
+    // === 나머지 기존 코드들은 모두 동일하게 유지 ===
+    
+    // API 연결 상태 확인
     function checkAPIService() {
         if (typeof window.APIService === 'undefined') {
             console.error('❌ APIService를 찾을 수 없습니다. global_sync.js가 로드되었는지 확인하세요.');
@@ -958,7 +1017,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     party: normalizePartyName(member.party) || '정보없음',
                     score: score,
                     
-                    // 🎯 가중치 계산에 필요한 상세 데이터 저장
+                    // 🎯 가중치 계산에 필요한 상세 데이터 저장 (rank_member.js와 동일한 구조)
                     attendanceRate: parseFloat(member.attendance_rate || 85),
                     billPassSum: parseInt(member.bill_pass_sum || 0),
                     petitionSum: parseInt(member.petition_sum || 0),
@@ -969,6 +1028,8 @@ document.addEventListener('DOMContentLoaded', function() {
                     voteMatchRatio: parseFloat(member.vote_match_ratio || 85),
                     voteMismatchRatio: parseFloat(member.vote_mismatch_ratio || 15),
                     
+                    // rank_member.js와 동일한 참조 구조
+                    _performance: member,
                     originalData: member
                 };
             });
@@ -1032,7 +1093,7 @@ document.addEventListener('DOMContentLoaded', function() {
             { rank: 3, name: '박성준', party: '더불어민주당', score: 88 }
         ];
         
-        // 🎯 원본 데이터도 저장
+        // 🎯 원본 데이터도 저장 (rank_member.js와 동일한 구조)
         mainPageState.originalMemberData = defaultData.map(member => ({
             ...member,
             attendanceRate: 85 + Math.random() * 10,
@@ -1043,7 +1104,8 @@ document.addEventListener('DOMContentLoaded', function() {
             secretaryCount: Math.floor(Math.random() * 5),
             invalidVoteRatio: 1 + Math.random() * 3,
             voteMatchRatio: 80 + Math.random() * 15,
-            voteMismatchRatio: 5 + Math.random() * 15
+            voteMismatchRatio: 5 + Math.random() * 15,
+            _performance: {} // rank_member.js와 동일한 구조
         }));
         
         return defaultData;
@@ -1349,13 +1411,14 @@ document.addEventListener('DOMContentLoaded', function() {
         return loadMainPageData();
     };
 
-    // === 🛠️ 디버깅 함수들 (개선된 버전) ===
+    // === 🛠️ 디버깅 함수들 (향상된 버전) ===
     window.mainPageDebug = {
         getState: () => mainPageState,
         refreshData: () => loadMainPageData(),
         recalculateScores: () => recalculateAllScores(),
         getCurrentWeights: () => mainPageState.currentWeights,
         
+        // 🔧 BroadcastChannel 관련 디버그
         recreateChannel: () => {
             console.log('[MainPage] BroadcastChannel 재생성 시도...');
             const success = createBroadcastChannel();
@@ -1377,8 +1440,13 @@ document.addEventListener('DOMContentLoaded', function() {
             return success;
         },
         
+        checkConnection: () => {
+            checkPercentPageConnection();
+            console.log('[MainPage] percent 페이지 연결 확인 요청 전송');
+        },
+        
         showInfo: () => {
-            console.log('[MainPage] 📊 메인페이지 정보 (v3.1.0):');
+            console.log('[MainPage] 📊 메인페이지 정보 (v3.1.0 - 실시간 연동 개선):');
             console.log('- 원본 정당 데이터:', mainPageState.originalPartyData.length, '개');
             console.log('- 원본 의원 데이터:', mainPageState.originalMemberData.length, '명');
             console.log('- 현재 정당 순위:', mainPageState.currentPartyRanking.length, '개');
@@ -1402,7 +1470,27 @@ document.addEventListener('DOMContentLoaded', function() {
                 const member = mainPageState.originalMemberData[0];
                 const bounds = calculateMemberNormalizationBounds(mainPageState.originalMemberData);
                 const score = calculateMemberScore(member, mainPageState.currentWeights, bounds);
-                console.log(`[MainPage] ${member.name} 의원 점수 계산:`, score);
+                console.log(`[MainPage] ${member.name} 의원 점수 계산 (rank_member.js 동일 로직):`, score);
+            }
+        },
+        
+        compareWithRankMember: (memberName) => {
+            const member = mainPageState.originalMemberData.find(m => m.name === memberName);
+            if (member && mainPageState.currentWeights) {
+                const bounds = calculateMemberNormalizationBounds(mainPageState.originalMemberData);
+                const score = calculateMemberScore(member, mainPageState.currentWeights, bounds);
+                console.log(`[MainPage] ${memberName} 계산 결과:`, score);
+                console.log(`[MainPage] 사용된 데이터:`, {
+                    attendanceRate: getFieldValue(member, 'attendance_rate'),
+                    billPassSum: getFieldValue(member, 'bill_pass_sum'),
+                    petitionSum: getFieldValue(member, 'petition_sum'),
+                    petitionPassSum: getFieldValue(member, 'petition_pass_sum'),
+                    invalidVoteRatio: getFieldValue(member, 'invalid_vote_ratio')
+                });
+                return score;
+            } else {
+                console.log(`[MainPage] ${memberName} 찾을 수 없음 또는 가중치 없음`);
+                return null;
             }
         }
     };
@@ -1438,7 +1526,7 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         }, 1000);
 
-        console.log('✅ 클라이언트 가중치 연동 메인페이지 스크립트 로드 완료 (v3.1.0)');
+        console.log('✅ 클라이언트 가중치 연동 메인페이지 스크립트 로드 완료 (v3.1.0 - 실시간 연동 개선)');
         console.log('🎯 디버깅: window.mainPageDebug.showInfo()');
         
     } catch (error) {

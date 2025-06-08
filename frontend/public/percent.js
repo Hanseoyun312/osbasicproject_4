@@ -1,6 +1,6 @@
 /**
- * percent.js (v4.0.0) - 완전 클라이언트 사이드 가중치 시스템
- * 개선사항: 서버 저장 제거, 클라이언트 전용 모드, 각 사용자별 독립적 가중치
+ * percent.js (v4.1.0) - 완전 클라이언트 사이드 가중치 시스템 (초기화 개선)
+ * 개선사항: 완전한 초기화 기능, 강제 리셋, 원본 데이터 복원 보장
  */
 
 document.addEventListener('DOMContentLoaded', function() {
@@ -86,7 +86,7 @@ document.addEventListener('DOMContentLoaded', function() {
     // === 🚀 초기화 함수 ===
     async function initializeApp() {
         try {
-            console.log('[Percent] 🚀 클라이언트 전용 가중치 시스템 초기화... (v4.0.0)');
+            console.log('[Percent] 🚀 클라이언트 전용 가중치 시스템 초기화... (v4.1.0)');
             console.log('[Percent] 👤 사용자 ID:', appState.userId);
             
             showLoadingState(true);
@@ -320,7 +320,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 weights: activeWeights,
                 timestamp: new Date().toISOString(),
                 totalWeight: totalWeight,
-                version: '4.0.0',
+                version: '4.1.0',
                 mode: 'client_only',
                 userId: appState.userId
             };
@@ -484,7 +484,7 @@ document.addEventListener('DOMContentLoaded', function() {
             
             // 메타데이터 추가
             settingsData._timestamp = Date.now();
-            settingsData._version = '4.0.0';
+            settingsData._version = '4.1.0';
             settingsData._lastApplied = appState.lastApplied?.toISOString();
             settingsData._mode = 'client_only';
             settingsData._userId = appState.userId;
@@ -504,6 +504,209 @@ document.addEventListener('DOMContentLoaded', function() {
             console.error('[Percent] 설정 저장 실패:', error);
             updateSaveStatus('error', '💥 저장 실패');
             throw error;
+        }
+    }
+
+    // === 🔄 초기화 함수 (개선된 버전) ===
+    function resetToDefaults() {
+        if (!confirm('모든 값을 초기값으로 되돌리시겠습니까?')) {
+            return;
+        }
+
+        try {
+            console.log('[Percent] 🔄 기본값으로 초기화...');
+
+            // 1. localStorage 완전 정리
+            localStorage.removeItem('current_weights');
+            localStorage.removeItem('client_weight_change_event');
+            localStorage.removeItem(WEIGHT_CONFIG.STORAGE_KEY);
+            localStorage.removeItem('last_client_weight_update');
+
+            // 2. 앱 상태 초기화
+            appState.currentWeights = null;
+            appState.lastWeightUpdate = null;
+            appState.lastApplied = null;
+            appState.lastCalculatedWeights = null;
+
+            // 3. 모든 체크박스 체크
+            elements.checkboxInputs.forEach(checkbox => {
+                checkbox.checked = true;
+            });
+
+            // 4. 모든 입력 필드 초기값 설정
+            elements.percentInputs.forEach(input => {
+                const label = input.dataset.item;
+                const defaultValue = WEIGHT_CONFIG.DEFAULT_WEIGHTS[label];
+                
+                if (defaultValue !== undefined) {
+                    input.value = defaultValue + '%';
+                    input.disabled = false;
+                    updateInputStyle(input, true);
+                }
+            });
+
+            // 5. UI 업데이트
+            calculateAndDisplayTotal();
+            updateSaveStatus('reset', '🔄 초기화됨');
+            updateLastSavedDisplay();
+
+            // 6. 🎯 다른 페이지들에 초기화 알림 전송
+            const resetData = {
+                type: 'client_weights_reset',
+                timestamp: new Date().toISOString(),
+                source: 'percent_page',
+                action: 'reset_to_original',
+                clientSide: true,
+                userId: appState.userId,
+                mode: 'client_only'
+            };
+
+            // localStorage 이벤트
+            localStorage.setItem('client_weight_change_event', JSON.stringify(resetData));
+            
+            // BroadcastChannel 알림
+            const broadcastSuccess = safeBroadcast(resetData);
+            if (broadcastSuccess) {
+                console.log('[Percent] 📡 초기화 알림 전송 성공');
+            }
+
+            // 커스텀 이벤트
+            document.dispatchEvent(new CustomEvent('clientWeightSettingsReset', {
+                detail: resetData
+            }));
+
+            showNotification('기본값으로 초기화되었습니다. 다른 페이지들도 원본 데이터로 복원됩니다.', 'info');
+            console.log('[Percent] ✅ 기본값 초기화 완료');
+
+            // 7. localStorage 정리 (1초 후)
+            setTimeout(() => {
+                try {
+                    localStorage.removeItem('client_weight_change_event');
+                } catch (e) {
+                    // 무시
+                }
+            }, 1000);
+            
+        } catch (error) {
+            console.error('[Percent] 기본값 초기화 실패:', error);
+            showNotification('초기화에 실패했습니다', 'error');
+        }
+    }
+
+    // === 🔄 강제 초기화 함수들 ===
+    async function forceResetAllPages() {
+        try {
+            console.log('[Percent] 🔄 모든 페이지 강제 원본 복원...');
+            
+            // 1. localStorage 완전 정리
+            localStorage.removeItem('current_weights');
+            localStorage.removeItem('client_weight_change_event');
+            localStorage.removeItem(WEIGHT_CONFIG.STORAGE_KEY);
+            localStorage.removeItem('last_client_weight_update');
+            
+            // 2. 앱 상태 초기화
+            appState.currentWeights = null;
+            appState.lastWeightUpdate = null;
+            appState.lastApplied = null;
+            appState.lastCalculatedWeights = null;
+            
+            // 3. 강제 초기화 알림 전송
+            const forceResetData = {
+                type: 'force_reset_to_original',
+                timestamp: new Date().toISOString(),
+                source: 'percent_page',
+                action: 'force_reset',
+                clientSide: true,
+                userId: appState.userId,
+                mode: 'emergency_reset'
+            };
+            
+            // 여러 방법으로 알림 전송
+            localStorage.setItem('client_weight_change_event', JSON.stringify(forceResetData));
+            
+            const broadcastSuccess = safeBroadcast(forceResetData);
+            if (broadcastSuccess) {
+                console.log('[Percent] 📡 강제 초기화 알림 전송 성공');
+            }
+            
+            document.dispatchEvent(new CustomEvent('forceResetToOriginal', {
+                detail: forceResetData
+            }));
+            
+            // 4. UI도 기본값으로 설정 (초기화 함수 호출하지 않고 직접)
+            elements.checkboxInputs.forEach(checkbox => {
+                checkbox.checked = true;
+            });
+            
+            elements.percentInputs.forEach(input => {
+                const label = input.dataset.item;
+                const defaultValue = WEIGHT_CONFIG.DEFAULT_WEIGHTS[label];
+                
+                if (defaultValue !== undefined) {
+                    input.value = defaultValue + '%';
+                    input.disabled = false;
+                    updateInputStyle(input, true);
+                }
+            });
+            
+            calculateAndDisplayTotal();
+            updateSaveStatus('reset', '🔄 강제 초기화됨');
+            updateLastSavedDisplay();
+            
+            showNotification('모든 페이지가 원본 데이터로 강제 복원되었습니다!', 'success', 5000);
+            console.log('[Percent] ✅ 강제 원본 복원 완료');
+            
+            // 5초 후 localStorage 정리
+            setTimeout(() => {
+                try {
+                    localStorage.removeItem('client_weight_change_event');
+                } catch (e) {
+                    // 무시
+                }
+            }, 5000);
+            
+        } catch (error) {
+            console.error('[Percent] 강제 원본 복원 실패:', error);
+            showNotification('강제 복원에 실패했습니다', 'error');
+        }
+    }
+
+    function clearAllWeightData() {
+        try {
+            console.log('[Percent] 🧹 모든 가중치 데이터 정리...');
+            
+            // localStorage 완전 정리
+            const keysToRemove = [
+                'current_weights',
+                'client_weight_change_event', 
+                'last_client_weight_update',
+                WEIGHT_CONFIG.STORAGE_KEY,
+                WEIGHT_CONFIG.BACKUP_KEY,
+                'client_user_id'
+            ];
+            
+            keysToRemove.forEach(key => {
+                try {
+                    localStorage.removeItem(key);
+                    console.log(`[Percent] 🗑️ ${key} 제거됨`);
+                } catch (e) {
+                    console.warn(`[Percent] ${key} 제거 실패:`, e);
+                }
+            });
+            
+            // 상태 완전 초기화
+            appState.currentWeights = null;
+            appState.lastWeightUpdate = null;
+            appState.lastApplied = null;
+            appState.lastCalculatedWeights = null;
+            appState.connectedPages.clear();
+            
+            showNotification('모든 가중치 데이터가 정리되었습니다', 'info');
+            console.log('[Percent] ✅ 데이터 정리 완료');
+            
+        } catch (error) {
+            console.error('[Percent] 데이터 정리 실패:', error);
+            showNotification('데이터 정리에 실패했습니다', 'error');
         }
     }
 
@@ -663,43 +866,6 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
             </div>
         `;
-    }
-
-    function resetToDefaults() {
-        if (!confirm('모든 값을 초기값으로 되돌리시겠습니까?')) {
-            return;
-        }
-
-        try {
-            console.log('[Percent] 🔄 기본값으로 초기화...');
-
-            // 모든 체크박스 체크
-            elements.checkboxInputs.forEach(checkbox => {
-                checkbox.checked = true;
-            });
-
-            // 모든 입력 필드 초기값 설정
-            elements.percentInputs.forEach(input => {
-                const label = input.dataset.item;
-                const defaultValue = WEIGHT_CONFIG.DEFAULT_WEIGHTS[label];
-                
-                if (defaultValue !== undefined) {
-                    input.value = defaultValue + '%';
-                    input.disabled = false;
-                    updateInputStyle(input, true);
-                }
-            });
-
-            calculateAndDisplayTotal();
-            scheduleAutoApply();
-            
-            showNotification('기본값으로 초기화되었습니다', 'info');
-            console.log('[Percent] ✅ 기본값 초기화 완료');
-            
-        } catch (error) {
-            console.error('[Percent] 기본값 초기화 실패:', error);
-            showNotification('초기화에 실패했습니다', 'error');
-        }
     }
 
     // === 기타 UI 함수들 ===
@@ -893,7 +1059,7 @@ document.addEventListener('DOMContentLoaded', function() {
             const settingsData = {
                 weights: {},
                 metadata: {
-                    version: '4.0.0',
+                    version: '4.1.0',
                     exportDate: new Date().toISOString(),
                     source: 'percent_client_v4',
                     lastApplied: appState.lastApplied?.toISOString(),
@@ -994,10 +1160,10 @@ document.addEventListener('DOMContentLoaded', function() {
             return weights;
         },
         getUserId: () => appState.userId,
-        version: '4.0.0'
+        version: '4.1.0'
     };
 
-    // === 🔧 개발자 도구 ===
+    // === 🔧 개발자 도구 (개선된 버전) ===
     window.debugClientWeights = {
         state: appState,
         config: WEIGHT_CONFIG,
@@ -1031,8 +1197,36 @@ document.addEventListener('DOMContentLoaded', function() {
             console.log('[Percent] 테스트 브로드캐스트 결과:', success ? '성공' : '실패');
             return success;
         },
+        
+        // 🆕 새로운 디버그 함수들
+        forceResetAll: forceResetAllPages,
+        clearAllData: clearAllWeightData,
+        
+        // 연결된 페이지들 상태 확인
+        checkAllConnections: () => {
+            console.log('[Percent] 🔍 연결된 페이지 확인 중...');
+            checkConnectedPages();
+            setTimeout(() => {
+                console.log('[Percent] 연결된 페이지:', Array.from(appState.connectedPages));
+                console.log('[Percent] 연결 수:', appState.connectedPages.size);
+            }, 1000);
+        },
+        
+        // 긴급 복구 함수
+        emergencyReset: () => {
+            console.log('[Percent] 🚨 긴급 복구 시작...');
+            clearAllWeightData();
+            setTimeout(() => {
+                forceResetAllPages();
+            }, 500);
+            setTimeout(() => {
+                location.reload();
+            }, 2000);
+        },
+        
         help: () => {
-            console.log('[Percent] 🔧 클라이언트 전용 가중치 시스템 디버그 도구 (v4.0.0):');
+            console.log('[Percent] 🔧 클라이언트 전용 가중치 시스템 디버그 도구 (v4.1.0):');
+            console.log('  기본 함수:');
             console.log('  - getCurrentWeights(): 현재 가중치 반환');
             console.log('  - testNotification(msg, type): 알림 테스트');
             console.log('  - simulateWeightUpdate(): 가중치 업데이트 시뮬레이션');
@@ -1042,13 +1236,22 @@ document.addEventListener('DOMContentLoaded', function() {
             console.log('  - recreateChannel(): BroadcastChannel 재생성');
             console.log('  - getChannelStatus(): 채널 상태 확인');
             console.log('  - testBroadcast(): 브로드캐스트 테스트');
+            console.log('  복구 함수:');
+            console.log('  - forceResetAll(): 모든 페이지 강제 원본 복원');
+            console.log('  - clearAllData(): 모든 가중치 데이터 정리');
+            console.log('  - checkAllConnections(): 모든 연결 상태 확인');
+            console.log('  - emergencyReset(): 긴급 전체 복구 (주의!)');
         }
     };
+
+    // 전역 함수로도 등록
+    window.forceResetAllPages = forceResetAllPages;
+    window.clearAllWeightData = clearAllWeightData;
 
     // === 🚀 앱 시작 ===
     initializeApp();
 
-    console.log('[Percent] ✅ 클라이언트 전용 가중치 시스템 로드 완료 (v4.0.0)');
+    console.log('[Percent] ✅ 클라이언트 전용 가중치 시스템 로드 완료 (v4.1.0 - 초기화 개선)');
     console.log('[Percent] 💻 완전 클라이언트 모드 - 서버 저장 없음');
     console.log('[Percent] 👤 사용자 ID:', appState.userId);
     console.log('[Percent] 🔧 디버그: window.debugClientWeights.help()');
