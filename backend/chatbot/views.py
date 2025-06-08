@@ -26,6 +26,10 @@ def get_table_columns(db_path, table_name):
         cur = conn.execute(f"PRAGMA table_info({table_name})")
         return [row[1] for row in cur.fetchall()]
 
+print("=== 실제 DB 경로 ===", DB_PATHS["members"])
+import os
+print("=== 실제 존재하나? ===", os.path.exists(DB_PATHS["members"]))
+
 def search_member(question):
     db_path = DB_PATHS["members"]
     with sqlite3.connect(db_path) as conn:
