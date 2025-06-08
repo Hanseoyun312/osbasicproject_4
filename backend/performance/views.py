@@ -13,7 +13,7 @@ from performance.party_stats import calculate_party_performance_scores  # ✅ �
 def get_performance_data(request):
     """총 실적 점수를 사용자의 입력에 따라 정렬하여 반환 (현재 국회의원만 필터링)"""
     order = request.GET.get("order", "desc")  # 기본값: 내림차순(desc)
-    limit = int(request.GET.get("limit", 10))  # 기본값: 10개 출력
+    limit = int(request.GET.get("limit", 300))  # 기본값: 300개 출력
 
     if order not in ("asc", "desc"):
         return Response({"error": "⚠️ 정렬 방식은 'asc' 또는 'desc' 중 하나여야 합니다."}, status=400)
