@@ -658,23 +658,25 @@ document.getElementById('searchButton').addEventListener('click', () => {
         // 주소창 반영
         window.history.pushState({ member: name }, '', newUrl);
 
+        window.dispatchEvent(new PopStateEvent('popstate'));
+
         // 실제 의원 정보 불러오기
         loadMemberByName(name);
     }
 });
 
 // ✅ 2. 페이지 로드 시 URL에서 ?member=값 있으면 자동 적용
-// popstate 이벤트 처리 (주소창 수정 시 작동)
-window.addEventListener('popstate', function(event) {
-    const name = getMemberFromUrl();
-    if (!name) return;
+window.addEventListener('DOMContentLoaded', () => {
+    const params = new URLSearchParams(window.location.search);
+    const name = params.get('member');
 
-    const member = allMembers.find(m => m.name === name);
-    if (member) {
-        selectMember(member);
+    if (name) {
+        const input = document.getElementById('memberSearchInput');
+        input.value = name;
+
+        loadMemberByName(name);
     }
 });
-
 
 // ✅ 3. 이름으로 의원 찾아서 선택
 function loadMemberByName(name) {
@@ -690,5 +692,18 @@ function loadMemberByName(name) {
         alert(`"${name}" 의원을 찾을 수 없습니다.`);
     }
 }
+
+// ✅ 4. 뒤로가기 / 앞으로가기 / 주소창 수동 변경 반영
+window.addEventListener('popstate', () => {
+    const params = new URLSearchParams(window.location.search);
+    const name = params.get('member');
+
+    if (name) {
+        const input = document.getElementById('memberSearchInput');
+        input.value = name;
+
+        loadMemberByName(name);
+    }
+});
 
 console.log('📦 percent_member.js 로드 완료 (검색 기능 수정 버전)');
