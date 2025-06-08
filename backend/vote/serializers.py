@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from vote.models import Lawmaker, BillId, Vote, LawmakerVoteSummary
+from vote.models import Lawmaker, BillId, Vote, LawmakerVoteSummary,BillVoteByParty,BillVoteSummary
 
 class LawmakerSerializer(serializers.ModelSerializer):
     class Meta:
@@ -25,3 +25,14 @@ class LawmakerVoteSummarySerializer(serializers.ModelSerializer):
     class Meta:
         model = LawmakerVoteSummary
         fields = "__all__"
+
+class BillVoteByPartySerializer(serializers.ModelSerializer):
+    class Meta:
+        model = BillVoteByParty
+        fields = '__all__'  # 모든 필드를 노출, 필요시 리스트로 조절 가능
+
+
+class BillVoteSummarySerializer(serializers.ModelSerializer):
+    class Meta:
+        model = BillVoteSummary
+        fields = '__all__'
