@@ -3,9 +3,10 @@ services:
     name: baekilha
     env: python
     buildCommand: pip install -r requirements.txt
-    startCommand: gunicorn config.wsgi:application
+    startCommand: gunicorn config.wsgi:application --bind 0.0.0.0:$PORT
     envVars:
       - key: DJANGO_SETTINGS_MODULE
         value: config.settings
-      - key: GEMINI_API_KEY
-        value: AIzaSyDmEltqyWAdlo1ClifAfkIDMYgsted0zbk
+    buildFilter:
+      paths:
+        - backend/**
