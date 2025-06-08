@@ -302,25 +302,21 @@ function selectMember(member) {
     if (searchInput) {
         searchInput.value = member.name;
     }
-
+    
     // 검색 결과 숨김
     hideSearchResults();
 
-    // URL 업데이트
+    // URL 업데이트 (중요!)
     updateURL(member.name);
 
-    // 👉 강제로 popstate 이벤트 발생시켜서 화면 갱신
-    window.dispatchEvent(new PopStateEvent('popstate'));
+    // 프로필 업데이트
+    updateMemberProfile(member);
 
-    // ✅ 이거 하면 또 selectMember가 호출되므로 아래는 **절대 다시 실행 X**
-    // (updateMemberProfile은 popstate 안에서 다시 실행됨!)
-
-    // showNotification만 남겨도 됨
+    // 성공 메시지
     showNotification(`${member.name} 의원 정보를 로드했습니다`, 'success');
     
     console.log(`✅ ${member.name} 의원 선택 완료`);
 }
-
 
 // 🔗 URL 업데이트 함수
 function updateURL(memberName) {
