@@ -302,21 +302,26 @@ function selectMember(member) {
     if (searchInput) {
         searchInput.value = member.name;
     }
-    
+
     // 검색 결과 숨김
     hideSearchResults();
 
-    // URL 업데이트 (중요!)
+    // URL 변경
     updateURL(member.name);
 
-    // 프로필 업데이트
-    updateMemberProfile(member);
+    // ✅ 바뀐 URL 기준으로 다시 멤버 찾아서 프로필 갱신
+    const urlMember = getMemberFromUrl();
+    if (urlMember) {
+        updateMemberProfile(urlMember);
+    } else {
+        updateMemberProfile(member);  // fallback
+    }
 
-    // 성공 메시지
     showNotification(`${member.name} 의원 정보를 로드했습니다`, 'success');
-    
+
     console.log(`✅ ${member.name} 의원 선택 완료`);
 }
+
 
 // 🔗 URL 업데이트 함수
 function updateURL(memberName) {
