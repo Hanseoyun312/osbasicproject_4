@@ -645,5 +645,57 @@ document.addEventListener('DOMContentLoaded', function() {
     
     waitForAPI();
 });
+// ✅ 1. 검색 버튼 클릭 → 주소창에 반영
+document.getElementById('searchButton').addEventListener('click', () => {
+    const input = document.getElementById('memberSearchInput');
+    const name = input.value.trim();
+
+    if (name) {
+        const baseUrl = window.location.pathname;
+        const newUrl = `${baseUrl}?member=${encodeURIComponent(name)}`;
+
+        // 주소창 반영
+        window.history.pushState({ member: name }, '', newUrl);
+
+        // 실제 의원 정보 불러오기
+        loadMemberByName(name);
+    }
+});
+
+// ✅ 2. 페이지 로드 시 URL에서 ?member=값 있으면 자동 적용
+window.addEventListener('DOMContentLoaded', () => {
+    const params = new URLSearchParams(window.location.search);
+    const name = params.get('member');
+
+    if (name) {
+        const input = document.getElementById('memberSearchInput');
+        input.value = name;
+
+        loadMemberByName(name);
+    }
+});
+
+// ✅ 3. 이름으로 의원 찾아서 선택
+function loadMemberByName(name) {
+    if (!window.allMembers || !Array.isArray(allMembers)) {
+        console.error("❌ allMembers 배열이 없음");
+        return;
+    }
+
+    const member = allMembers.find(m => m.name === name);
+    if (member) {
+        selectMember(member);
+    } else {
+        alert(`"${name}" 의원을 찾을 수 없습니다.`);
+    }
+}
 
 console.log('📦 percent_member.js 로드 완료 (검색 기능 수정 버전)');
+
+// ✅ 엔터로도 검색 실행 (주소창 반영 포함)
+document.getElementById('memberSearchInput').addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') {
+        e.preventDefault();
+        document.getElementById('searchButton').click();
+    }
+});
