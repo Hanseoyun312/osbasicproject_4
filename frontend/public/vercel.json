@@ -2,7 +2,7 @@
   "rewrites": [
     {
       "source": "/percent_member.html",
-      "destination": "/frontend/percent_member.html"
+      "destination": "/frontend/public/percent_member.html"
     }
   ]
 }
