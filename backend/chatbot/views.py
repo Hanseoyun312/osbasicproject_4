@@ -94,4 +94,4 @@ def chatbot_ask(request):
     return JsonResponse({"answer": gemini_reply, "data": prompt_data})
 
 def chatbot_page(request):
-    return render(request, 'chatbot/chatbot_test.html')
+    return render(request, "chatbot/test.html")

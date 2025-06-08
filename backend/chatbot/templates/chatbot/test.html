@@ -2,40 +2,120 @@
 <html lang="ko">
 <head>
     <meta charset="UTF-8">
-    <title>국회의원 챗봇 테스트</title>
+    <title>국회의원 실적 챗봇</title>
     <style>
-        body { max-width: 480px; margin: 30px auto; font-family: sans-serif; }
-        #chat-box { border: 1px solid #ccc; padding: 10px; min-height: 100px; background: #fafafa; }
-        #question { width: 90%; padding: 8px; }
-        button { padding: 8px 16px; }
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 700px;
+            margin: 40px auto;
+            padding: 20px;
+            background-color: #f7f7f7;
+        }
+
+        h2 {
+            text-align: center;
+        }
+
+        #chat-box {
+            border: 1px solid #ccc;
+            padding: 15px;
+            height: 300px;
+            overflow-y: auto;
+            background-color: #fff;
+        }
+
+        .message {
+            margin-bottom: 10px;
+        }
+
+        .user {
+            font-weight: bold;
+            color: #0056b3;
+        }
+
+        .bot {
+            color: #333;
+        }
+
+        #input-area {
+            margin-top: 15px;
+            display: flex;
+        }
+
+        #message-input {
+            flex: 1;
+            padding: 10px;
+            font-size: 16px;
+        }
+
+        #send-button {
+            padding: 10px 20px;
+            font-size: 16px;
+            margin-left: 10px;
+        }
     </style>
 </head>
 <body>
-    <h2>국회의원/정당 챗봇</h2>
+    <h2>국회의원 실적 챗봇</h2>
+
     <div id="chat-box"></div>
-    <input type="text" id="question" placeholder="질문을 입력하세요">
-    <button onclick="askChatbot()">질문</button>
+
+    <div id="input-area">
+        <input type="text" id="message-input" placeholder="질문을 입력하세요..." />
+        <button id="send-button">전송</button>
+    </div>
 
     <script>
-        function askChatbot() {
-            const question = document.getElementById('question').value;
-            if (!question) return;
-            document.getElementById('chat-box').innerHTML += "<div><b>나:</b> " + question + "</div>";
+        const chatBox = document.getElementById("chat-box");
+        const messageInput = document.getElementById("message-input");
+        const sendButton = document.getElementById("send-button");
 
-            fetch('/chatbot/ask/', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ question })
+        function appendMessage(sender, text) {
+            const messageDiv = document.createElement("div");
+            messageDiv.classList.add("message");
+
+            if (sender === "user") {
+                messageDiv.innerHTML = `<span class="user">나:</span> ${text}`;
+            } else {
+                messageDiv.innerHTML = `<span class="bot">챗봇:</span> ${text}`;
+            }
+
+            chatBox.appendChild(messageDiv);
+            chatBox.scrollTop = chatBox.scrollHeight;
+        }
+
+        sendButton.addEventListener("click", () => {
+            const message = messageInput.value.trim();
+            if (!message) return;
+
+            appendMessage("user", message);
+            messageInput.value = "";
+
+            fetch("/chatbot/ask/", { // 주소 주의!
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify({ question: message }) // question!
             })
             .then(response => response.json())
             .then(data => {
-                document.getElementById('chat-box').innerHTML +=
-                    "<div><b>챗봇:</b> " + data.answer + "</div>";
+                appendMessage("bot", data.answer); // answer!
             })
-            .catch(err => {
-                document.getElementById('chat-box').innerHTML += "<div style='color:red'>에러 발생!</div>";
+            .catch(error => {
+                appendMessage("bot", "❌ 오류가 발생했습니다.");
+                console.error(error);
             });
-        }
+        });
+
+        messageInput.addEventListener("keydown", (e) => {
+            if (e.key === "Enter") {
+                sendButton.click();
+            }
+        });
+    
+});
+
     </script>
 </body>
 </html>
