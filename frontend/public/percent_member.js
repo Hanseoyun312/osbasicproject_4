@@ -302,43 +302,34 @@ function selectMember(member) {
     if (searchInput) {
         searchInput.value = member.name;
     }
-
+    
     // 검색 결과 숨김
     hideSearchResults();
 
-    // URL 변경
+    // URL 업데이트 (중요!)
     updateURL(member.name);
 
-    // ✅ 바뀐 URL 기준으로 다시 멤버 찾아서 프로필 갱신
-    const urlMember = getMemberFromUrl();
-    if (urlMember) {
-        updateMemberProfile(urlMember);
-    } else {
-        updateMemberProfile(member);  // fallback
-    }
+    // 프로필 업데이트
+    updateMemberProfile(member);
 
+    // 성공 메시지
     showNotification(`${member.name} 의원 정보를 로드했습니다`, 'success');
-
+    
     console.log(`✅ ${member.name} 의원 선택 완료`);
 }
 
-
 // 🔗 URL 업데이트 함수
 function updateURL(memberName) {
-    console.log(`🔗 URL 업데이트: "${memberName}"`);
-    
     try {
-        const url = new URL(window.location);
-        url.searchParams.set('member', memberName);
-        
-        // URL 변경
-        window.history.pushState({ member: memberName }, `백일하 - ${memberName} 의원`, url);
-        
-        console.log(`✅ URL 업데이트 완료: ${url.href}`);
-    } catch (error) {
-        console.error('❌ URL 업데이트 실패:', error);
+        const basePath = window.location.pathname.split('?')[0];
+        const newUrl = `${basePath}?member=${encodeURIComponent(memberName)}`;
+        window.history.pushState({}, '', newUrl);
+        console.log(`✅ URL 강제 업데이트: ${newUrl}`);
+    } catch (e) {
+        console.error('❌ URL 업데이트 실패:', e);
     }
 }
+
 
 // ===== 기존 코드들 (간소화) =====
 
