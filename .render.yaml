@@ -8,4 +8,4 @@ services:
       - key: DJANGO_SETTINGS_MODULE
         value: config.settings
       - key: GEMINI_API_KEY
-        value: AIzaSyDgLGaVnT6es2kXuuEyjI_tgSi1sbHdWRo
+        value: AIzaSyDmEltqyWAdlo1ClifAfkIDMYgsted0zbk
