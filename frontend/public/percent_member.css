@@ -1,3 +1,47 @@
+/* === API 상태 표시 === */
+.api-status-indicator {
+    background-color: var(--side);
+    border-bottom: 1px solid var(--side2);
+    padding: 8px 0;
+    text-align: center;
+    font-size: 13px;
+}
+
+.status-message {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    max-width: 1000px;
+    margin: 0 auto;
+}
+
+.status-icon {
+    font-size: 16px;
+    animation: pulse 1.5s infinite;
+}
+
+.status-icon.connected {
+    color: #4caf50;
+    animation: none;
+}
+
+.status-icon.error {
+    color: #f44336;
+    animation: none;
+}
+
+@keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.5; }
+}
+
+.status-text {
+    color: var(--string);
+    font-weight: 500;
+}
+
+/* === 검색 영역 === */
 .search-container {
     background-color: white;
     padding: 20px 0;
@@ -43,6 +87,7 @@
 .search-input {
     flex-grow: 1;
     display: flex;
+    position: relative; /* 검색 결과 드롭다운 위치를 위해 추가 */
 }
 
 .search-input input {
@@ -55,6 +100,7 @@
 
 .search-input input:focus {
     outline: none;
+    background-color: #e8f2ff;
 }
 
 .search-button {
@@ -69,12 +115,83 @@
     background-color: #e8f2ff;
 }
 
+.search-button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
 .search-button svg {
     width: 20px;
     height: 20px;
 }
 
-/* 국회의원 프로필필 */
+/* === 검색 결과 드롭다운 === */
+.search-results {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    background: white;
+    border: 1px solid #ddd;
+    border-top: none;
+    border-radius: 0 0 5px 5px;
+    max-height: 300px;
+    overflow-y: auto;
+    z-index: 1000;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+}
+
+.search-result-item {
+    padding: 12px 15px;
+    cursor: pointer;
+    border-bottom: 1px solid #eee;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    transition: background-color 0.2s;
+}
+
+.search-result-item:hover {
+    background-color: #f5f5f5;
+}
+
+.search-result-item:last-child {
+    border-bottom: none;
+}
+
+.search-result-photo {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    object-fit: cover;
+    background-color: #e0e0e0;
+    flex-shrink: 0;
+}
+
+.search-result-info {
+    flex: 1;
+}
+
+.search-result-name {
+    font-weight: 500;
+    font-size: 14px;
+    color: var(--string);
+    margin-bottom: 2px;
+}
+
+.search-result-details {
+    font-size: 12px;
+    color: var(--example);
+}
+
+.no-results {
+    padding: 15px;
+    text-align: center;
+    color: var(--example);
+    font-size: 14px;
+}
+
+/* === 국회의원 프로필 === */
 .member-profile {
     display: flex;
     margin: 30px auto;
@@ -93,9 +210,22 @@
     height: 330px;
     background-color: #e0e0e0;
     border-radius: 8px;
+    overflow: hidden;
+    position: relative;
+}
+
+.member-photo img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.photo-placeholder {
     display: flex;
     align-items: center;
     justify-content: center;
+    width: 100%;
+    height: 100%;
     color: #999;
     font-size: 14px;
 }
@@ -112,11 +242,19 @@
     font-size: 35px;
     font-weight: 700;
     color: #333;
+    transition: color 0.3s ease;
 }
 
 .member-party {
     font-size: 20px;
     color: #666;
+    transition: color 0.3s ease;
+}
+
+.member-district {
+    font-size: 16px;
+    color: var(--example);
+    margin-top: 5px;
 }
 
 .home-icon {
@@ -143,6 +281,15 @@
     color: var(--light-blue);
 }
 
+.home-icon a.disabled {
+    cursor: not-allowed;
+    opacity: 0.5;
+}
+
+.home-icon a.disabled:hover svg {
+    color: var(--example);
+}
+
 .member-right-column {
     flex-grow: 1;
 }
@@ -151,11 +298,16 @@
     font-size: 18px;
     margin-bottom: 15px;
     color: #333;
+    transition: all 0.3s ease;
 }
 
 .ranking strong {
     color: #69c7ee;
     font-weight: 700;
+}
+
+.ranking.loading {
+    color: var(--example);
 }
 
 .stat-item {
@@ -166,13 +318,93 @@
     align-items: center;
     padding: 10px 0;
     border-bottom: 1px solid #f0f0f0;
+    transition: all 0.3s ease;
 }
 
 .stat-item:last-child {
     border-bottom: none;
 }
 
-/* 반응형 디자인 */
+.stat-value {
+    font-weight: 600;
+    transition: color 0.3s ease;
+}
+
+.stat-value.loading {
+    color: var(--example);
+    font-style: italic;
+}
+
+.stat-value.good {
+    color: #4caf50;
+}
+
+.stat-value.warning {
+    color: #ff9800;
+}
+
+.stat-value.bad {
+    color: #f44336;
+}
+
+/* === 로딩 애니메이션 === */
+.loading-spinner {
+    display: inline-block;
+    width: 16px;
+    height: 16px;
+    border: 2px solid var(--side2);
+    border-radius: 50%;
+    border-top-color: var(--light-blue);
+    animation: spin 1s ease-in-out infinite;
+    margin-right: 5px;
+}
+
+@keyframes spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+/* === 알림 및 에러 메시지 === */
+.notification {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    padding: 15px 20px;
+    border-radius: 8px;
+    font-size: 14px;
+    z-index: 2000;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+    transform: translateX(100%);
+    transition: transform 0.3s ease;
+    max-width: 350px;
+}
+
+.notification.show {
+    transform: translateX(0);
+}
+
+.notification.success {
+    background-color: #4caf50;
+    color: white;
+}
+
+.notification.error {
+    background-color: #f44336;
+    color: white;
+}
+
+.notification.warning {
+    background-color: #ff9800;
+    color: white;
+}
+
+.notification.info {
+    background-color: #2196f3;
+    color: white;
+}
+
+/* === 반응형 디자인 === */
 @media screen and (max-width: 1024px) {
     .search-container {
         padding: 18px 0;
@@ -187,6 +419,7 @@
         max-width: 900px;
         gap: 25px;
         margin: 25px auto;
+        padding: 0 15px;
     }
 
     .member-left-column {
@@ -248,6 +481,15 @@
         width: 18px;
         height: 18px;
     }
+
+    .search-result-item {
+        padding: 10px 12px;
+    }
+
+    .search-result-photo {
+        width: 35px;
+        height: 35px;
+    }
     
     .member-profile {
         flex-direction: column;
@@ -296,6 +538,11 @@
     .stat-item {
         font-size: 14px;
         padding: 8px 0;
+    }
+
+    .notification {
+        max-width: 300px;
+        font-size: 13px;
     }
 }
 
@@ -347,6 +594,24 @@
         height: 18px;
     }
 
+    .search-result-item {
+        padding: 8px 10px;
+        gap: 8px;
+    }
+
+    .search-result-photo {
+        width: 30px;
+        height: 30px;
+    }
+
+    .search-result-name {
+        font-size: 13px;
+    }
+
+    .search-result-details {
+        font-size: 11px;
+    }
+
     .member-profile {
         margin: 15px auto;
         padding: 0 10px;
@@ -355,6 +620,9 @@
     .member-photo {
         width: 180px;
         height: 230px;
+    }
+
+    .photo-placeholder {
         font-size: 13px;
     }
 
@@ -382,5 +650,58 @@
 
     .member-right-column {
         max-width: 350px;
+    }
+
+    .notification {
+        max-width: 280px;
+        font-size: 12px;
+        padding: 12px 16px;
+    }
+
+    .api-status-indicator {
+        padding: 6px 0;
+        font-size: 12px;
+    }
+}
+
+/* === 접근성 개선 === */
+@media (prefers-reduced-motion: reduce) {
+    .member-name,
+    .member-party,
+    .ranking,
+    .stat-item,
+    .stat-value,
+    .notification,
+    .search-result-item {
+        transition: none;
+    }
+    
+    .loading-spinner,
+    .status-icon {
+        animation: none;
+    }
+}
+
+/* === 고대비 모드 지원 === */
+@media (prefers-contrast: high) {
+    .search-bar,
+    .member-photo,
+    .search-results {
+        border-width: 2px;
+        border-color: var(--string);
+    }
+    
+    .search-result-item:hover {
+        background-color: var(--main1);
+    }
+    
+    .stat-value.good {
+        color: #2e7d32;
+        font-weight: 700;
+    }
+    
+    .stat-value.bad {
+        color: #d32f2f;
+        font-weight: 700;
     }
 }
