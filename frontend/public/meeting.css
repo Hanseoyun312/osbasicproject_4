@@ -1,0 +1,486 @@
+/* 페이지 제목 */
+.page-title {
+    text-align: center;
+    font-size: 36px; 
+    font-weight: 600;
+    margin-bottom: 40px;
+    position: relative;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+/* 검색 컨테이너 */
+.search-container {
+    margin: 30px auto;
+    display: flex;
+    justify-content: center;
+    max-width: 600px;
+}
+
+.search-box {
+    display: flex;
+    border: 1px solid var(--side2);
+    border-radius: 50px;
+    overflow: hidden;
+    width: 100%;
+    background-color: var(--main2);
+    box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+}
+
+.search-input {
+    flex: 1;
+    padding: 12px 20px;
+    border: none;
+    outline: none;
+    font-size: 16px;
+    background-color: transparent;
+    font-family: 'Blinker', sans-serif;
+}
+
+.search-input::placeholder {
+    color: #999;
+}
+
+.search-button {
+    background: none;
+    border: none;
+    padding: 0 20px;
+    cursor: pointer;
+    transition: background-color 0.2s;
+    background-color: transparent;
+    color: var(--string);
+}
+
+.search-button:hover {
+    background-color: #e8f2ff;
+}
+
+.search-button svg {
+    width: 20px;
+    height: 20px;
+}
+
+/* 필터 버튼 */
+.filter-buttons {
+    display: flex;
+    justify-content: center;
+    gap: 10px;
+    margin: 20px 0;
+}
+
+.filter-btn {
+    padding: 8px 20px;
+    border: 1px solid var(--side2);
+    background-color: white;
+    border-radius: 20px;
+    cursor: pointer;
+    transition: all 0.2s;
+    font-size: 14px;
+    font-family: 'Blinker', sans-serif;
+}
+
+.filter-btn:hover {
+    background-color: var(--main2);
+}
+
+.filter-btn.active {
+    background-color: var(--light-blue);
+    color: white;
+    border-color: var(--light-blue);
+}
+
+/* 법안 정보 */
+.bill-info {
+    margin-bottom: 20px;
+    font-size: 16px;
+    color: var(--example);
+}
+
+.bill-info span {
+    font-weight: 600;
+    color: var(--string);
+}
+
+/* 법안 목록 */
+.content-container {
+    padding: 20px 0;
+    max-width: 1200px;
+    margin: 0 auto;
+}
+
+.bill-list {
+    background-color: white;
+    border-radius: 10px;
+    padding: 30px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+    margin: 20px 0;
+    overflow-x: auto;
+}
+
+/* 테이블 스타일 */
+.bill-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.bill-table thead {
+    background-color: var(--main1);
+}
+
+.bill-table th {
+    padding: 15px 10px;
+    text-align: left;
+    font-weight: 600;
+    color: var(--string);
+    border-bottom: 2px solid var(--side2);
+}
+
+.bill-table tbody tr {
+    border-bottom: 1px solid #f0f0f0;
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+
+.bill-table tbody tr:hover {
+    background-color: var(--main2);
+}
+
+.bill-table tbody tr.passed {
+    background-color: rgba(232, 245, 233, 0.3);
+    border-left: 4px solid #4caf50;
+}
+
+.bill-table tbody tr.rejected {
+    background-color: rgba(255, 235, 238, 0.3);
+    border-left: 4px solid #f44336;
+}
+
+.bill-table td {
+    padding: 15px 10px;
+    color: var(--string);
+}
+
+.bill-title {
+    font-weight: 500;
+    color: #333;
+}
+
+.bill-number {
+    color: var(--light-blue);
+    font-weight: 500;
+}
+
+/* 상태 뱃지 */
+.status-badge {
+    padding: 4px 12px;
+    border-radius: 15px;
+    font-size: 12px;
+    font-weight: 500;
+    display: inline-block;
+}
+
+.status-badge.status-passed {
+    background-color: #e8f5e9;
+    color: #2e7d32;
+}
+
+.status-badge.status-rejected {
+    background-color: #ffebee;
+    color: #c62828;
+}
+
+.status-badge.status-pending {
+    background-color: #fff3e0;
+    color: #f57c00;
+}
+
+/* API 연결 관련 상태 스타일 */
+.loading-state {
+    text-align: center;
+    padding: 40px;
+    color: var(--example);
+    animation: pulse 1.5s ease-in-out infinite alternate;
+}
+
+.error-state {
+    text-align: center;
+    padding: 40px;
+    color: #f44336;
+}
+
+.empty-state {
+    text-align: center;
+    padding: 40px;
+    color: var(--example);
+}
+
+@keyframes pulse {
+    from { opacity: 0.6; }
+    to { opacity: 1; }
+}
+
+/* 환경별 알림 개선 */
+.api-notification {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    background: var(--main1);
+    padding: 12px 20px;
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    z-index: 10000;
+    font-size: 13px;
+    max-width: 350px;
+    font-family: 'Courier New', monospace;
+}
+
+.api-notification.success {
+    background: #4caf50;
+    color: white;
+}
+
+.api-notification.error {
+    background: #f44336;
+    color: white;
+}
+
+.api-notification.warning {
+    background: #ff9800;
+    color: white;
+}
+
+.api-notification.info {
+    background: #2196f3;
+    color: white;
+}
+
+/* 반응형 디자인 */
+@media screen and (max-width: 1024px) {
+    .content-container {
+        padding: 20px 15px;
+    }
+
+    .bill-list {
+        padding:25px 20px;
+        margin: 15px 0;
+    }
+
+    .page-title {
+        font-size: 32px;
+        margin-bottom: 35px;
+        flex-direction: column;
+        gap: 10px;
+    }
+
+    .page-title button {
+        font-size: 12px !important;
+        padding: 4px 8px !important;
+        margin-left: 0 !important;
+    }
+
+    .search-container {
+        margin: 25px 15px;
+        max-width: 100%;
+    }
+
+    .bill-table th,
+    .bill-table td {
+        padding: 15px 10px;
+    }
+
+    .api-notification {
+        max-width: 300px;
+        font-size: 12px;
+        padding: 10px 16px;
+    }
+}
+
+@media screen and (max-width: 768px) {
+    .page-title {
+        font-size: 24px;
+        margin: 30px 0 20px;
+    }
+    
+    .search-container {
+        margin: 20px 15px;
+    }
+    
+    .filter-buttons {
+        flex-wrap: wrap;
+        gap: 8px;
+    }
+    
+    .filter-btn {
+        font-size: 13px;
+        padding: 6px 15px;
+    }
+
+    .bill-info {
+        font-size: 14px;
+    }
+    
+    .bill-list {
+        padding: 20px 15px;
+        border-radius: 5px;
+        margin: 15px 0;
+    }
+    
+    .bill-table {
+        font-size: 14px;
+    }
+    
+    .bill-table th,
+    .bill-table td {
+        padding: 10px 5px;
+    }
+
+    .bill-table th:nth-child(5),
+    .bill-table td:nth-child(5) {
+        display: none;
+    }
+
+    .bill-table tbody tr:hover {
+        transform: none;
+    }
+
+    .bill-table tbody tr::after {
+        display: none;
+    }
+
+    .api-notification {
+        top: 10px;
+        right: 10px;
+        left: 10px;
+        max-width: none;
+    }
+
+    .loading-state,
+    .error-state,
+    .empty-state {
+        padding: 30px 15px;
+        font-size: 13px;
+    }
+}
+
+@media screen and (max-width: 576px) {
+    .page-title {
+        font-size: 24px;
+        margin: 25px 0 15px;
+    }
+
+    .search-container {
+        margin: 15px 10px;
+    }
+    
+    .search-box {
+        border-radius: 25px;
+    }
+    
+    .search-input {
+        font-size: 14px;
+        padding: 10px 15px;
+    }
+    
+    .search-button {
+        padding: 0 15px;
+    }
+    
+    .filter-buttons {
+        margin: 15px 0;
+        gap: 5px;
+    }
+
+    .filter-btn {
+        font-size: 12px;
+        padding: 5px 12px;
+    }
+
+    .content-container {
+        padding: 15px 10px;
+    }
+
+    .bill-list {
+        padding: 15px 10px;
+        border-radius: 0;
+        margin: 10px 0;
+    }
+
+    .bill-info {
+        font-size: 13px;
+        margin-bottom: 15px;
+    }
+    
+    .bill-table {
+        font-size: 12px;
+    }
+    
+    .bill-table th:nth-child(2),
+    .bill-table td:nth-child(2),
+    .bill-table th:nth-child(5),
+    .bill-table td:nth-child(5) {
+        display: none;
+    }
+
+    .status-badge {
+        font-size: 11px;
+        padding: 3px 8px;
+    }
+    
+    .stat-box {
+        padding: 15px 25px;
+        flex: 1 1 45%;
+        min-width: 0;
+    }
+    
+    .stat-title {
+        font-size: 12px;
+    }
+    
+    .stat-number {
+        font-size: 24px;
+    }
+
+    .loading-state,
+    .error-state,
+    .empty-state {
+        padding: 25px 10px;
+        font-size: 12px;
+    }
+}
+
+/* 접근성 개선 */
+@media (prefers-reduced-motion: reduce) {
+    .bill-table tbody tr,
+    .filter-btn,
+    .search-button,
+    .page-title button {
+        animation: none !important;
+        transition: none !important;
+    }
+    
+    .page-title button:hover {
+        transform: none !important;
+    }
+}
+
+/* 고대비 모드 지원 */
+@media (prefers-contrast: high) {
+    .filter-btn.active {
+        background-color: #000080;
+        border-color: #000080;
+    }
+    
+    .status-badge {
+        border: 1px solid currentColor;
+    }
+    
+    .api-notification {
+        border: 2px solid currentColor;
+    }
+    
+    .bill-table tbody tr.passed,
+    .bill-table tbody tr.rejected {
+        border-left-width: 6px;
+    }
+}

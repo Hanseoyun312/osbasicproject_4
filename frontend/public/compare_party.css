@@ -1,0 +1,531 @@
+h1 {
+    text-align: center;
+    margin: 40px 0;
+    font-size: 32px;
+    font-weight: 700;
+    position: relative;
+}
+
+/* API 연결 상태 관련 스타일 */
+.loading-state {
+    color: var(--example);
+    animation: pulse 1.5s ease-in-out infinite alternate;
+}
+
+.error-state {
+    background: #ffebee;
+    color: #c62828;
+    padding: 20px;
+    border-radius: 8px;
+    margin: 20px 0;
+    text-align: center;
+    border: 1px solid #ffcdd2;
+}
+
+.error-state h3 {
+    margin: 0 0 10px 0;
+    font-size: 18px;
+}
+
+.error-state p {
+    margin: 0 0 15px 0;
+}
+
+.error-state button {
+    background: #c62828;
+    color: white;
+    border: none;
+    padding: 8px 16px;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+
+.error-state button:hover {
+    background: #b71c1c;
+}
+
+@keyframes pulse {
+    from { opacity: 0.6; }
+    to { opacity: 1; }
+}
+
+.comparison-container {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 20px;
+    margin-bottom: 40px;
+}
+
+.comparison-card {
+    flex: 1;
+    min-width: 300px;
+    background-color: white;
+    border-radius: 8px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    padding: 20px;
+    transition: opacity 0.3s ease;
+}
+
+.comparison-title {
+    margin-bottom: 20px;
+    position: relative;
+}
+
+select.party-dropdown {
+    width: 100%;
+    padding: 10px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    margin-bottom: 20px;
+    position: relative;
+    background-color: white;
+    font-size: 16px;
+    transition: border-color 0.2s ease;
+}
+
+select.party-dropdown:focus {
+    border-color: var(--light-blue);
+    outline: none;
+}
+
+select.party-dropdown:disabled {
+    background-color: #f5f5f5;
+    cursor: not-allowed;
+}
+
+.status-item {
+    margin-bottom: 20px;
+}
+
+.status-label {
+    display: block;
+    font-size: 14px;
+    color: #666;
+    margin-bottom: 5px;
+}
+
+.status-value {
+    font-size: 20px;
+    font-weight: 700;
+    transition: color 0.3s ease;
+}
+
+/* 🎨 개선된 아이콘 및 툴팁 스타일 */
+.info-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #6c757d 0%, #495057 100%);
+    color: white;
+    font-size: 11px;
+    font-weight: bold;
+    cursor: help;
+    position: relative;
+    margin-left: 8px;
+    transition: all 0.3s ease;
+    border: 2px solid rgba(255, 255, 255, 0.2);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}
+
+.info-icon:hover {
+    background: linear-gradient(135deg, #495057 0%, #343a40 100%);
+    transform: scale(1.1);
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);
+}
+
+.tooltip {
+    position: absolute;
+    bottom: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    background: linear-gradient(135deg, #2c3e50 0%, #34495e 100%);
+    color: white;
+    padding: 12px 16px;
+    border-radius: 8px;
+    font-size: 13px;
+    font-weight: 500;
+    white-space: normal;
+    opacity: 0;
+    visibility: hidden;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    z-index: 1000;
+    margin-bottom: 8px;
+    min-width: 180px;
+    max-width: 280px;
+    line-height: 1.5;
+    text-align: left;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    backdrop-filter: blur(10px);
+}
+
+.tooltip p {
+    margin: 0;
+    padding: 2px 0;
+}
+
+.tooltip p:not(:last-child) {
+    margin-bottom: 6px;
+}
+
+.tooltip br {
+    line-height: 1.8;
+}
+
+.tooltip::before {
+    content: '';
+    position: absolute;
+    top: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    border: 7px solid transparent;
+    border-top-color: #2c3e50;
+    filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.2));
+}
+
+.tooltip::after {
+    content: '';
+    position: absolute;
+    top: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    border: 6px solid transparent;
+    border-top-color: #34495e;
+}
+
+.info-icon:hover .tooltip {
+    opacity: 1;
+    visibility: visible;
+    transform: translateX(-50%) translateY(-4px);
+}
+
+.win {
+    color: #2196F3;
+    font-weight: bold;
+}
+
+.lose {
+    color: #F44336;
+}
+
+/* 반응형 스타일 */
+@media screen and (max-width: 1024px) {
+    h1 {
+        font-size: 28px;
+        margin: 35px 0;
+    }
+    
+    h1 button {
+        font-size: 12px !important;
+        padding: 5px 10px !important;
+        margin-left: 15px !important;
+    }
+    
+    .comparison-container {
+        gap: 15px;
+        margin-bottom: 35px;
+    }
+    
+    .comparison-card {
+        min-width: 280px;
+        padding: 18px;
+    }
+    
+    .party-dropdown {
+        padding: 9px;
+        font-size: 15px;
+        margin-bottom: 18px;
+    }
+    
+    .status-item {
+        margin-bottom: 18px;
+    }
+    
+    .status-label {
+        font-size: 13px;
+    }
+    
+    .status-value {
+        font-size: 18px;
+    }
+    
+    .comparison-title {
+        margin-bottom: 18px;
+    }
+    
+    .tooltip {
+        font-size: 12px;
+        padding: 10px 14px;
+        min-width: 160px;
+        max-width: 240px;
+        margin-bottom: 6px;
+    }
+    
+    .info-icon {
+        width: 16px;
+        height: 16px;
+        font-size: 10px;
+    }
+}
+
+@media screen and (max-width: 768px) {
+    h1 {
+        font-size: 26px;
+        margin: 30px 0;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 10px;
+    }
+    
+    h1 button {
+        font-size: 11px !important;
+        padding: 4px 8px !important;
+        margin-left: 0 !important;
+    }
+    
+    .comparison-container {
+        gap: 12px;
+        margin-bottom: 30px;
+    }
+    
+    .comparison-card {
+        min-width: 100%;
+        padding: 15px;
+    }
+    
+    .party-dropdown {
+        padding: 8px;
+        font-size: 14px;
+        margin-bottom: 15px;
+    }
+    
+    .status-item {
+        margin-bottom: 15px;
+    }
+    
+    .status-label {
+        font-size: 12px;
+        margin-bottom: 4px;
+    }
+    
+    .status-value {
+        font-size: 16px;
+    }
+    
+    .comparison-title {
+        margin-bottom: 15px;
+    }
+    
+    .info-icon {
+        width: 16px;
+        height: 16px;
+        font-size: 10px;
+    }
+    
+    .tooltip {
+        font-size: 11px;
+        padding: 8px 12px;
+        white-space: normal;
+        max-width: 200px;
+    }
+}
+
+@media screen and (max-width: 576px) {
+    h1 {
+        font-size: 24px;
+        margin: 25px 0;
+    }
+    
+    h1 button {
+        font-size: 10px !important;
+        padding: 3px 6px !important;
+    }
+    
+    .comparison-container {
+        gap: 10px;
+        margin-bottom: 25px;
+    }
+    
+    .comparison-card {
+        padding: 12px;
+    }
+    
+    .party-dropdown {
+        padding: 6px;
+        font-size: 13px;
+        margin-bottom: 12px;
+    }
+    
+    .status-item {
+        margin-bottom: 12px;
+    }
+    
+    .status-label {
+        font-size: 11px;
+        margin-bottom: 3px;
+    }
+    
+    .status-value {
+        font-size: 14px;
+    }
+    
+    .comparison-title {
+        margin-bottom: 12px;
+    }
+    
+    .info-icon {
+        width: 15px;
+        height: 15px;
+        font-size: 9px;
+    }
+    
+    .tooltip {
+        font-size: 11px;
+        padding: 8px 12px;
+        min-width: 140px;
+        max-width: 200px;
+        left: 10px;
+        transform: none;
+        margin-bottom: 4px;
+    }
+
+    .tooltip::before,
+    .tooltip::after {
+        left: 30px;
+        transform: none;
+    }
+    
+    .party-header {
+        font-size: 20px;
+        margin-bottom: 40px;
+    }
+    
+    .party-selector {
+        top: 30px;
+        right: 50%;
+        transform: translateX(50%);
+    }
+    
+    .error-state {
+        padding: 15px;
+        margin: 15px 0;
+    }
+    
+    .error-state h3 {
+        font-size: 16px;
+    }
+    
+    .error-state p {
+        font-size: 14px;
+    }
+}
+
+/* 접근성 개선 */
+@media (prefers-reduced-motion: reduce) {
+    .comparison-card,
+    .party-dropdown,
+    .status-value,
+    h1 button,
+    .tooltip,
+    .info-icon {
+        animation: none !important;
+        transition: none !important;
+    }
+    
+    h1 button:hover {
+        transform: none !important;
+    }
+    
+    .info-icon:hover {
+        transform: none !important;
+    }
+    
+    .info-icon:hover .tooltip {
+        transform: translateX(-50%) !important;
+    }
+}
+
+/* 고대비 모드 지원 */
+@media (prefers-contrast: high) {
+    .win {
+        color: #0000FF;
+        font-weight: 900;
+    }
+    
+    .lose {
+        color: #FF0000;
+        font-weight: 900;
+    }
+    
+    .comparison-card {
+        border: 2px solid #000;
+    }
+    
+    .party-dropdown {
+        border-width: 2px;
+    }
+    
+    .error-state {
+        border-width: 2px;
+    }
+    
+    h1 button {
+        border-width: 2px !important;
+    }
+    
+    .tooltip {
+        background: #000000;
+        border: 2px solid #ffffff;
+        color: #ffffff;
+    }
+    
+    .tooltip::before {
+        border-top-color: #000000;
+    }
+    
+    .tooltip::after {
+        border-top-color: #000000;
+    }
+    
+    .info-icon {
+        background: #000000;
+        border: 2px solid #ffffff;
+    }
+}
+
+/* 다크모드 대응 (시스템 설정 감지) */
+@media (prefers-color-scheme: dark) {
+    .comparison-card {
+        background-color: #2d3748;
+        color: #e2e8f0;
+    }
+    
+    .party-dropdown {
+        background-color: #4a5568;
+        color: #e2e8f0;
+        border-color: #718096;
+    }
+    
+    .status-label {
+        color: #a0aec0;
+    }
+    
+    .tooltip {
+        background: linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%);
+        border-color: rgba(255, 255, 255, 0.2);
+        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.6);
+    }
+    
+    .tooltip::before {
+        border-top-color: #1a1a1a;
+    }
+    
+    .tooltip::after {
+        border-top-color: #2d2d2d;
+    }
+}
