@@ -4,7 +4,6 @@ import sqlite3
 from dotenv import load_dotenv
 from django.views.decorators.csrf import csrf_exempt
 from django.http import JsonResponse
-from django.shortcuts import render
 
 from .classify import classify_question
 from .llm_client import ask_llm
@@ -46,6 +45,3 @@ def chatbot_view(request):
             return JsonResponse({'error': str(e)}, status=500)
 
     return JsonResponse({'error': 'POST 요청만 지원합니다.'}, status=405)
-
-def chatbot_page(request):
-    return render(request, "chatbot/test.html")
