@@ -1,144 +1,38 @@
 <!DOCTYPE html>
 <html lang="ko">
 <head>
-    <meta charset="UTF-8">
-    <title>국회의원 실적 챗봇</title>
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            max-width: 700px;
-            margin: 40px auto;
-            padding: 20px;
-            background-color: #f7f7f7;
-        }
-
-        h2 {
-            text-align: center;
-        }
-
-        #chat-box {
-            border: 1px solid #ccc;
-            padding: 15px;
-            height: 300px;
-            overflow-y: auto;
-            background-color: #fff;
-        }
-
-        .message {
-            margin-bottom: 10px;
-        }
-
-        .user {
-            font-weight: bold;
-            color: #0056b3;
-        }
-
-        .bot {
-            color: #333;
-        }
-
-        #input-area {
-            margin-top: 15px;
-            display: flex;
-        }
-
-        #message-input {
-            flex: 1;
-            padding: 10px;
-            font-size: 16px;
-        }
-
-        #send-button {
-            padding: 10px 20px;
-            font-size: 16px;
-            margin-left: 10px;
-        }
-    </style>
+  <meta charset="UTF-8">
+  <title>국회 챗봇</title>
+  <style>
+    body { font-family: sans-serif; padding: 20px; max-width: 600px; margin: auto; }
+    textarea { width: 100%; height: 80px; }
+    #response { margin-top: 20px; padding: 10px; background: #f0f0f0; border-radius: 8px; }
+  </style>
 </head>
 <body>
-    <h2>국회의원 실적 챗봇</h2>
+  <h1>국회의원 챗봇 🤖</h1>
+  <p>궁금한 점을 입력하세요:</p>
+  <textarea id="question" placeholder="예: 이재명의 출석률은?"></textarea>
+  <br><br>
+  <button onclick="askChatbot()">질문하기</button>
 
-    <div id="chat-box"></div>
+  <div id="response"></div>
 
-    <div id="input-area">
-        <input type="text" id="message-input" placeholder="질문을 입력하세요..." />
-        <button id="send-button">전송</button>
-    </div>
+  <script>
+    async function askChatbot() {
+      const question = document.getElementById("question").value;
+      const responseDiv = document.getElementById("response");
+      responseDiv.innerHTML = "🤖 답변을 생성 중입니다...";
 
-    <script>
-        const chatBox = document.getElementById("chat-box");
-        const messageInput = document.getElementById("message-input");
-        const sendButton = document.getElementById("send-button");
-
-        function appendMessage(sender, text) {
-            const messageDiv = document.createElement("div");
-            messageDiv.classList.add("message");
-
-            if (sender === "user") {
-                messageDiv.innerHTML = `<span class="user">나:</span> ${text}`;
-            } else {
-                messageDiv.innerHTML = `<span class="bot">챗봇:</span> ${text}`;
-            }
-
-            chatBox.appendChild(messageDiv);
-            chatBox.scrollTop = chatBox.scrollHeight;
-        }
-
-        sendButton.addEventListener("click", () => {
-            const message = messageInput.value.trim();
-            if (!message) return;
-
-            appendMessage("user", message);
-            messageInput.value = "";
-
-            fetch("/chatbot/ask/", { // 주소 주의!
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json"
-                },
-                body: JSON.stringify({ question: message }) // question!
-            })
-            .then(response => response.json())
-            .then(data => {
-                appendMessage("bot", data.answer); // answer!
-            })
-            .catch(error => {
-                appendMessage("bot", "❌ 오류가 발생했습니다.");
-                console.error(error);
-            });
-        });
-
-        messageInput.addEventListener("keydown", (e) => {
-            if (e.key === "Enter") {
-                sendButton.click();
-            }
-        });
-        sendButton.addEventListener("click", () => {
-    const message = messageInput.value.trim();
-    if (!message) return;
-
-    appendMessage("user", message);
-    messageInput.value = "";
-
-    fetch("/chatbot/ask/", {
+      const res = await fetch("/chatbot/", {
         method: "POST",
-        headers: {
-            "Content-Type": "application/json"
-        },
-        body: JSON.stringify({ question: message })
-    })
-    .then(response => response.json())
-    .then(data => {
-        // 🟢 추가된 코드!
-        alert("서버에서 온 전체 응답: " + JSON.stringify(data));
-        appendMessage("bot", data.answer);
-    })
-    .catch(error => {
-        appendMessage("bot", "❌ 오류가 발생했습니다.");
-        console.error(error);
-    });
-});
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ question })
+      });
 
-    </script>
+      const data = await res.json();
+      responseDiv.innerHTML = `<strong>🤖 답변:</strong><br>${data.answer || data.error || '응답 실패'}`;
+    }
+  </script>
 </body>
 </html>
