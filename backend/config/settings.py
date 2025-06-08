@@ -27,7 +27,7 @@ SECRET_KEY = 'django-insecure-hk-tdc(lr4b(lr%53jq#79#hez5$4bb^_(mc)=x3&c_mr4uv92
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = ['baekilha.onrender.com']
+ALLOWED_HOSTS = ['localhost']
 
 
 # Application definition
