@@ -8,6 +8,7 @@ from django.views.decorators.csrf import csrf_exempt
 from django.http import JsonResponse
 from django.views.decorators.http import require_POST
 from django.conf import settings
+from django.shortcuts import render
 
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")  # 반드시 .env나 Render 환경변수에 등록할 것
 
@@ -91,3 +92,6 @@ def chatbot_ask(request):
         gemini_reply = "관련 데이터가 없습니다."
 
     return JsonResponse({"answer": gemini_reply, "data": prompt_data})
+
+def chatbot_page(request):
+    return render(request, 'chatbot/chatbot_test.html')
