@@ -320,16 +320,20 @@ function selectMember(member) {
 
 // 🔗 URL 업데이트 함수
 function updateURL(memberName) {
+    console.log(`🔗 URL 업데이트: "${memberName}"`);
+    
     try {
-        const basePath = window.location.pathname.split('?')[0];
-        const newUrl = `${basePath}?member=${encodeURIComponent(memberName)}`;
-        window.history.pushState({}, '', newUrl);
-        console.log(`✅ URL 강제 업데이트: ${newUrl}`);
-    } catch (e) {
-        console.error('❌ URL 업데이트 실패:', e);
+        const url = new URL(window.location);
+        url.searchParams.set('member', memberName);
+        
+        // URL 변경
+        window.history.pushState({ member: memberName }, `백일하 - ${memberName} 의원`, url);
+        
+        console.log(`✅ URL 업데이트 완료: ${url.href}`);
+    } catch (error) {
+        console.error('❌ URL 업데이트 실패:', error);
     }
 }
-
 
 // ===== 기존 코드들 (간소화) =====
 
