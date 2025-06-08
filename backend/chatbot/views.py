@@ -8,6 +8,10 @@ from django.views.decorators.csrf import csrf_exempt
 from django.http import JsonResponse
 from django.views.decorators.http import require_POST
 from django.shortcuts import render
+from dotenv import load_dotenv
+
+load_dotenv()
+
 
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 
