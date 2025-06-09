@@ -481,20 +481,23 @@ function initializePercentSync() {
         input.addEventListener('input', updateTotal);
     });
 
-    // === localStorage에 저장된 가중치 복원 (가장 마지막에 실행) ===
-    const savedWeights = localStorage.getItem('user_weights');
-    if (savedWeights) {
-        try {
-            const weights = JSON.parse(savedWeights);
-            document.querySelectorAll('.weight-input').forEach(input => {
-                if (weights.hasOwnProperty(input.dataset.weight)) {
-                    input.value = weights[input.dataset.weight];
-                }
-            });
-        } catch (e) {
-            // 무시
+    // input이 완전히 렌더링된 후 복원 (100ms 지연)
+    setTimeout(() => {
+        const savedWeights = localStorage.getItem('user_weights');
+        if (savedWeights) {
+            try {
+                const weights = JSON.parse(savedWeights);
+                document.querySelectorAll('.weight-input').forEach(input => {
+                    if (weights.hasOwnProperty(input.dataset.weight)) {
+                        input.value = weights[input.dataset.weight];
+                    }
+                });
+            } catch (e) {
+                // 무시
+            }
         }
-    }
+        updateTotal();
+    }, 100);
 
     // 복원 후 반드시 updateTotal() 호출 (UI/상태 동기화)
     updateTotal();
