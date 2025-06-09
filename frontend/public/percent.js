@@ -481,7 +481,7 @@ function initializePercentSync() {
         input.addEventListener('input', updateTotal);
     });
 
-    // input이 완전히 렌더링된 후 복원 (100ms 지연)
+    // input이 완전히 렌더링된 후 복원 (500ms 지연)
     setTimeout(() => {
         const savedWeights = localStorage.getItem('user_weights');
         if (savedWeights) {
@@ -492,12 +492,13 @@ function initializePercentSync() {
                         input.value = weights[input.dataset.weight];
                     }
                 });
+                console.log('[percent.js] localStorage에서 가중치 복원 완료:', weights);
             } catch (e) {
                 // 무시
             }
         }
         updateTotal();
-    }, 100);
+    }, 500);
 
     // 복원 후 반드시 updateTotal() 호출 (UI/상태 동기화)
     updateTotal();
