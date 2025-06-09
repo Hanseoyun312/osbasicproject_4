@@ -825,3 +825,659 @@
     log('success', '✅ global_sync.js 로드 완료 (v2.1.0 - 업데이트된 Django API 연동)');
 
 })();
+
+// ===== 🛠️ 무한루프 완전 해결 - 전역 동기화 관리자 v2.0 =====
+class GlobalSyncManager {
+    constructor() {
+        this.channel = null;
+        this.isInitialized = false;
+        this.apiBaseUrl = 'https://baekilha.onrender.com';
+        
+        // 🔧 무한루프 방지를 위한 상태 관리
+        this.isProcessing = false;
+        this.lastProcessedId = null;
+        this.lastProcessedTime = null;
+        this.processedMessages = new Set(); // 처리된 메시지 ID 저장
+        this.PROCESSING_TIMEOUT = 5000; // 5초 타임아웃
+        this.MESSAGE_LIFETIME = 30000; // 메시지 ID 30초 보관
+        
+        this.originalData = {
+            parties: null,
+            members: null,
+            billCounts: null
+        };
+        this.calculatedData = {
+            parties: null,
+            members: null
+        };
+        this.currentWeights = {
+            '간사': 3,
+            '무효표 및 기권': 2,
+            '본회의 가결': 40,
+            '위원장': 5,
+            '청원 소개': 8,
+            '청원 결과': 23,
+            '출석': 8,
+            '투표 결과 일치': 7,
+            '투표 결과 불일치': 4
+        };
+        this.init();
+    }
+
+    async init() {
+        try {
+            await this.initBroadcastChannel();
+            await this.loadOriginalData();
+            this.setupEventListeners();
+            this.isInitialized = true;
+            console.log('🟢 GlobalSyncManager v2.0 초기화 완료 (무한루프 방지)');
+        } catch (error) {
+            console.error('❌ GlobalSyncManager 초기화 실패:', error);
+        }
+    }
+
+    async initBroadcastChannel() {
+        if (typeof BroadcastChannel !== 'undefined') {
+            this.channel = new BroadcastChannel('client_weight_updates_v4');
+            this.channel.addEventListener('message', this.handleBroadcastMessage.bind(this));
+            console.log('📡 BroadcastChannel 초기화 완료');
+        } else {
+            console.warn('⚠️ BroadcastChannel 미지원');
+        }
+    }
+
+    async loadOriginalData() {
+        try {
+            console.log('🔄 원본 데이터 로딩 시작...');
+            
+            // 병렬로 API 호출
+            const [partiesResponse, membersResponse, billCountsResponse] = await Promise.all([
+                fetch(`${this.apiBaseUrl}/performance/api/party_performance/`),
+                fetch(`${this.apiBaseUrl}/performance/api/performance/`),
+                fetch(`${this.apiBaseUrl}/legislation/bill-count/`)
+            ]);
+
+            if (!partiesResponse.ok || !membersResponse.ok || !billCountsResponse.ok) {
+                throw new Error('API 응답 오류');
+            }
+
+            const partiesData = await partiesResponse.json();
+            const membersData = await membersResponse.json();
+            const billCountsData = await billCountsResponse.json();
+
+            this.originalData = {
+                parties: partiesData.party_ranking || partiesData,
+                members: membersData.ranking || membersData,
+                billCounts: billCountsData
+            };
+
+            console.log('✅ 원본 데이터 로딩 완료');
+            console.log(`📊 정당: ${this.originalData.parties.length}개`);
+            console.log(`👥 의원: ${this.originalData.members.length}명`);
+            console.log(`📋 법안: ${this.originalData.billCounts.length}건`);
+
+        } catch (error) {
+            console.error('❌ 원본 데이터 로딩 실패:', error);
+            throw error;
+        }
+    }
+
+    setupEventListeners() {
+        // 🔧 localStorage 이벤트는 제거 (BroadcastChannel만 사용)
+        // localStorage 변경 감지 제거하여 중복 처리 방지
+        
+        // 연결 확인 요청 처리
+        if (this.channel) {
+            this.channel.addEventListener('message', (event) => {
+                if (event.data.type === 'connection_check') {
+                    this.sendConnectionResponse();
+                }
+            });
+        }
+        
+        console.log('🔧 이벤트 리스너 설정 완료 (localStorage 이벤트 제거)');
+    }
+
+    sendConnectionResponse() {
+        if (this.channel) {
+            this.channel.postMessage({
+                type: 'connection_response',
+                source: 'global_sync_manager', // 연결 확인은 실제 소스 표시
+                data_mode: 'api_integrated',
+                timestamp: new Date().toISOString()
+            });
+        }
+    }
+
+    // 🔧 메시지 중복 처리 방지 로직
+    isMessageAlreadyProcessed(messageId, messageTime) {
+        // 1. 메시지 ID 중복 체크
+        if (this.processedMessages.has(messageId)) {
+            console.log(`[GlobalSync] 중복 메시지 스킵: ${messageId}`);
+            return true;
+        }
+        
+        // 2. 시간 기반 중복 체크 (1초 이내 연속 메시지)
+        if (this.lastProcessedTime && 
+            messageTime && 
+            Math.abs(new Date(messageTime).getTime() - new Date(this.lastProcessedTime).getTime()) < 1000) {
+            console.log(`[GlobalSync] 시간 기반 중복 메시지 스킵`);
+            return true;
+        }
+        
+        return false;
+    }
+
+    // 🔧 처리된 메시지 ID 정리
+    cleanupProcessedMessages() {
+        const now = Date.now();
+        const cutoff = now - this.MESSAGE_LIFETIME;
+        
+        // 30초 이전 메시지 ID들 제거
+        for (const messageId of this.processedMessages) {
+            const messageTime = messageId.split('_')[0];
+            if (messageTime && parseInt(messageTime) < cutoff) {
+                this.processedMessages.delete(messageId);
+            }
+        }
+    }
+
+    handleBroadcastMessage(event) {
+        const data = event.data;
+        
+        // 🔧 자신이 보낸 메시지 무시 (original_source 체크)
+        if (data.original_source === 'global_sync_manager') {
+            console.log(`[GlobalSync] 자신이 보낸 메시지 무시: ${data.type}`);
+            return;
+        }
+        
+        // 🔧 메시지 중복 처리 방지
+        if (data.id && this.isMessageAlreadyProcessed(data.id, data.timestamp)) {
+            return;
+        }
+        
+        // 🔧 현재 처리 중인 상태 체크
+        if (this.isProcessing) {
+            console.log(`[GlobalSync] 처리 중이므로 메시지 스킵: ${data.type}`);
+            return;
+        }
+        
+        console.log(`[GlobalSync] 📡 메시지 수신: ${data.type} (from: ${data.source})`);
+        
+        switch (data.type) {
+            case 'calculated_data_distribution':
+                if (data.source === 'percent_page' && !data.original_source) {
+                    // percent.js에서 직접 온 메시지만 처리 (자신이 보낸 건 제외)
+                    this.handleWeightUpdateFromPercent(data);
+                }
+                break;
+            case 'data_reset_to_original':
+                if (data.source === 'percent_page') {
+                    this.resetToOriginalData();
+                }
+                break;
+            case 'test_broadcast':
+                console.log('📡 테스트 브로드캐스트 수신:', data.message);
+                break;
+        }
+    }
+
+    // 🔧 percent.js에서 오는 가중치 업데이트만 처리
+    async handleWeightUpdateFromPercent(data) {
+        // 🔧 이미 처리 중인지 확인
+        if (this.isProcessing) {
+            console.log('[GlobalSync] 이미 처리 중이므로 가중치 업데이트 스킵');
+            return;
+        }
+        
+        try {
+            this.isProcessing = true;
+            
+            // 🔧 메시지 ID 기록
+            if (data.id) {
+                this.processedMessages.add(data.id);
+                this.lastProcessedId = data.id;
+            }
+            this.lastProcessedTime = data.timestamp;
+            
+            // 🔧 처리 타임아웃 설정
+            const timeoutId = setTimeout(() => {
+                console.warn('[GlobalSync] 처리 타임아웃 - 강제 리셋');
+                this.isProcessing = false;
+            }, this.PROCESSING_TIMEOUT);
+            
+            console.log('[GlobalSync] 🎯 percent.js에서 가중치 업데이트 수신');
+            
+            // 🔧 percent.js에서 이미 계산된 데이터를 받았으므로 
+            // 추가 계산 없이 그대로 다른 페이지들에게 전달
+            if (data.partyData && data.memberData) {
+                console.log('[GlobalSync] 📡 계산된 데이터를 다른 페이지들에게 전달');
+                
+                // 🔧 source를 global_sync_manager로 변경하여 재전송
+                const forwardData = {
+                    ...data,
+                    source: 'global_sync_manager', // source 변경
+                    forwarded_from: 'percent_page',
+                    forwarded_at: new Date().toISOString()
+                };
+                
+                // 🔧 다른 페이지들에게만 전달 (percent.js에는 다시 보내지 않음)
+                if (this.channel) {
+                    this.channel.postMessage(forwardData);
+                }
+                
+                console.log('[GlobalSync] ✅ 계산된 데이터 전달 완료');
+            }
+            
+            // 타임아웃 정리
+            clearTimeout(timeoutId);
+            
+        } catch (error) {
+            console.error('[GlobalSync] ❌ 가중치 업데이트 처리 실패:', error);
+        } finally {
+            // 🔧 처리 완료 후 상태 리셋 (2초 지연)
+            setTimeout(() => {
+                this.isProcessing = false;
+                this.cleanupProcessedMessages(); // 오래된 메시지 ID 정리
+                console.log('[GlobalSync] 처리 상태 리셋 완료');
+            }, 2000);
+        }
+    }
+
+    async resetToOriginalData() {
+        if (this.isProcessing) {
+            console.log('[GlobalSync] 처리 중이므로 리셋 스킵');
+            return;
+        }
+        
+        try {
+            this.isProcessing = true;
+            console.log('[GlobalSync] 🔄 원본 데이터로 리셋 중...');
+            
+            // 원본 데이터 다시 로드
+            await this.loadOriginalData();
+            
+            // 원본 데이터를 계산된 데이터로 복사
+            this.calculatedData.parties = this.originalData.parties.map((party, index) => ({
+                rank: index + 1,
+                name: party.party,
+                calculated_score: party.avg_total_score,
+                original_score: party.avg_total_score,
+                score_changed: false,
+                weight_applied: false,
+                member_count: party.member_count
+            }));
+
+            this.calculatedData.members = this.originalData.members.map((member, index) => ({
+                rank: index + 1,
+                name: member.lawmaker_name,
+                party: member.party,
+                calculated_score: member.total_score,
+                original_score: member.total_score,
+                score_changed: false,
+                weight_applied: false,
+                lawmaker_id: member.lawmaker
+            }));
+
+            // 원본 데이터 브로드캐스트
+            this.broadcastOriginalData();
+            
+            console.log('[GlobalSync] ✅ 원본 데이터 리셋 완료');
+        } catch (error) {
+            console.error('[GlobalSync] ❌ 원본 데이터 리셋 실패:', error);
+        } finally {
+            setTimeout(() => {
+                this.isProcessing = false;
+            }, 1000);
+        }
+    }
+
+    broadcastOriginalData() {
+        const originalData = {
+            type: 'data_reset_to_original',
+            source: 'percent_page', // 🔧 다른 페이지들이 인식할 수 있도록 percent_page로 위장
+            original_source: 'global_sync_manager', // 실제 출처 기록
+            timestamp: new Date().toISOString(),
+            action: 'reset_completed',
+            
+            partyData: {
+                total: this.calculatedData.parties.length,
+                top3: this.calculatedData.parties.slice(0, 3),
+                full_list: this.calculatedData.parties
+            },
+            
+            memberData: {
+                total: this.calculatedData.members.length,
+                top3: this.calculatedData.members.slice(0, 3),
+                full_list: this.calculatedData.members
+            },
+            
+            calculationInfo: {
+                member_count: this.calculatedData.members.length,
+                party_count: this.calculatedData.parties.length,
+                calculation_method: 'original',
+                api_sources: [
+                    '/performance/api/party_performance/',
+                    '/performance/api/performance/',
+                    '/legislation/bill-count/'
+                ]
+            }
+        };
+
+        // BroadcastChannel로 전송
+        if (this.channel) {
+            this.channel.postMessage(originalData);
+        }
+
+        console.log('[GlobalSync] 📡 원본 데이터 브로드캐스트 완료 (source: percent_page로 위장)');
+    }
+
+    // === 🎯 실제 가중치 계산 로직들 ===
+    
+    async calculateScoresWithWeights() {
+        if (!this.originalData.parties || !this.originalData.members || !this.originalData.billCounts) {
+            throw new Error('원본 데이터가 없습니다');
+        }
+
+        console.log('[GlobalSync] 📊 가중치 기반 점수 계산 시작...');
+        
+        // 🔧 DEBUG: 계산 전 상태 확인
+        console.log('[GlobalSync] 🔧 DEBUG: 원본 데이터 상태');
+        console.log('- 원본 정당:', this.originalData.parties.length);
+        console.log('- 원본 의원:', this.originalData.members.length);
+        console.log('- 법안 데이터:', this.originalData.billCounts.length);
+        
+        // 정당 점수 계산
+        console.log('[GlobalSync] 🔧 DEBUG: 정당 점수 계산 시작...');
+        const calculatedParties = this.calculatePartyScores();
+        console.log('[GlobalSync] 🔧 DEBUG: 정당 점수 계산 결과:', calculatedParties.length);
+        this.calculatedData.parties = calculatedParties;
+        
+        // 의원 점수 계산
+        console.log('[GlobalSync] 🔧 DEBUG: 의원 점수 계산 시작...');
+        const calculatedMembers = this.calculateMemberScores();
+        console.log('[GlobalSync] 🔧 DEBUG: 의원 점수 계산 결과:', calculatedMembers.length);
+        this.calculatedData.members = calculatedMembers;
+        
+        // 🔧 DEBUG: 계산 후 상태 확인
+        console.log('[GlobalSync] 🔧 DEBUG: 계산 완료 후 상태');
+        console.log('- this.calculatedData.parties:', this.calculatedData.parties?.length);
+        console.log('- this.calculatedData.members:', this.calculatedData.members?.length);
+        
+        if (this.calculatedData.parties?.length > 0) {
+            console.log('[GlobalSync] 🔧 DEBUG: 1위 정당:', this.calculatedData.parties[0]);
+        }
+        
+        if (this.calculatedData.members?.length > 0) {
+            console.log('[GlobalSync] 🔧 DEBUG: 1위 의원:', this.calculatedData.members[0]);
+        }
+
+        console.log('[GlobalSync] ✅ 새로운 점수 계산 완료');
+    }
+
+    calculatePartyScores() {
+        const parties = this.originalData.parties.map(party => {
+            const scores = {};
+            let totalScore = 0;
+
+            // 각 가중치 항목별 점수 계산
+            scores.attendance = (party.avg_attendance || 85) * (this.currentWeights['출석'] / 100);
+            scores.invalidVote = (100 - (party.avg_invalid_vote_ratio || 2)) * (this.currentWeights['무효표 및 기권'] / 100);
+            scores.voteMatch = (party.avg_vote_match_ratio || 90) * (this.currentWeights['투표 결과 일치'] / 100);
+            scores.voteMismatch = (100 - (party.avg_vote_mismatch_ratio || 10)) * (this.currentWeights['투표 결과 불일치'] / 100);
+            
+            // 본회의 가결을 퍼센트로 변환
+            const maxBillPass = Math.max(...this.originalData.parties.map(p => p.bill_pass_sum || 0));
+            scores.billPass = maxBillPass > 0 ? 
+                ((party.bill_pass_sum || 0) / maxBillPass) * 100 * (this.currentWeights['본회의 가결'] / 100) : 0;
+            
+            // 청원 관련 퍼센트 변환
+            const maxPetition = Math.max(...this.originalData.parties.map(p => p.petition_sum || 0));
+            const maxPetitionPass = Math.max(...this.originalData.parties.map(p => p.petition_pass_sum || 0));
+            
+            scores.petition = maxPetition > 0 ? 
+                ((party.petition_sum || 0) / maxPetition) * 100 * (this.currentWeights['청원 소개'] / 100) : 0;
+            scores.petitionResult = maxPetitionPass > 0 ? 
+                ((party.petition_pass_sum || 0) / maxPetitionPass) * 100 * (this.currentWeights['청원 결과'] / 100) : 0;
+            
+            // 위원장/간사 점수
+            scores.leader = (party.committee_leader_count || 0) * (this.currentWeights['위원장'] / 10);
+            scores.secretary = (party.committee_secretary_count || 0) * (this.currentWeights['간사'] / 10);
+            
+            // 총점 계산
+            totalScore = Object.values(scores).reduce((sum, score) => sum + (isNaN(score) ? 0 : score), 0);
+            
+            // 100점을 넘지 않도록 정규화
+            if (totalScore > 100) {
+                const factor = 100 / totalScore;
+                Object.keys(scores).forEach(key => {
+                    scores[key] *= factor;
+                });
+                totalScore = 100;
+            }
+
+            return {
+                rank: 0, // 나중에 정렬 후 할당
+                name: party.party || '정당명 없음',
+                calculated_score: Math.round(totalScore * 10) / 10,
+                original_score: party.avg_total_score || 0,
+                score_changed: Math.abs(totalScore - (party.avg_total_score || 0)) > 0.1,
+                weight_applied: true,
+                detailed_scores: scores,
+                member_count: party.member_count || 0
+            };
+        });
+
+        // 점수 순으로 정렬하고 순위 할당
+        parties.sort((a, b) => b.calculated_score - a.calculated_score);
+        parties.forEach((party, index) => {
+            party.rank = index + 1;
+        });
+
+        console.log(`[GlobalSync] 정당 점수 계산 완료: ${parties.length}개`);
+        return parties;
+    }
+
+    calculateMemberScores() {
+        // 법안 수 데이터를 의원별로 매핑
+        const billCountMap = {};
+        this.originalData.billCounts.forEach(bill => {
+            if (bill.id && bill.total !== undefined) {
+                billCountMap[bill.id] = bill.total;
+            }
+        });
+
+        const members = this.originalData.members.map(member => {
+            const scores = {};
+            let totalScore = 0;
+
+            // 각 가중치 항목별 점수 계산
+            scores.attendance = (member.attendance_score || 85) * (this.currentWeights['출석'] / 100);
+            scores.invalidVote = (100 - (member.invalid_vote_ratio || 2)) * (this.currentWeights['무효표 및 기권'] / 100);
+            scores.voteMatch = (member.vote_match_ratio || 90) * (this.currentWeights['투표 결과 일치'] / 100);
+            scores.voteMismatch = (100 - (member.vote_mismatch_ratio || 10)) * (this.currentWeights['투표 결과 불일치'] / 100);
+            
+            // 본회의 제안을 퍼센트로 변환
+            const memberBillCount = billCountMap[member.lawmaker] || 0;
+            const maxBillCount = Math.max(...Object.values(billCountMap));
+            scores.billProposal = maxBillCount > 0 ? 
+                (memberBillCount / maxBillCount) * 100 * (this.currentWeights['본회의 가결'] / 100) : 0;
+            
+            // 청원 관련
+            scores.petition = (member.petition_score || 0) * (this.currentWeights['청원 소개'] / 100);
+            scores.petitionResult = (member.petition_result_score || 0) * (this.currentWeights['청원 결과'] / 100);
+            
+            // 위원장/간사 점수
+            scores.leader = (member.committee_leader_count || 0) * (this.currentWeights['위원장'] / 10);
+            scores.secretary = (member.committee_secretary_count || 0) * (this.currentWeights['간사'] / 10);
+            
+            // 총점 계산
+            totalScore = Object.values(scores).reduce((sum, score) => sum + (isNaN(score) ? 0 : score), 0);
+            
+            // 100점을 넘지 않도록 정규화
+            if (totalScore > 100) {
+                const factor = 100 / totalScore;
+                Object.keys(scores).forEach(key => {
+                    scores[key] *= factor;
+                });
+                totalScore = 100;
+            }
+
+            return {
+                rank: 0, // 나중에 정렬 후 할당
+                name: member.lawmaker_name || '의원명 없음',
+                party: member.party || '정당 정보 없음',
+                calculated_score: Math.round(totalScore * 10) / 10,
+                original_score: member.total_score || 0,
+                score_changed: Math.abs(totalScore - (member.total_score || 0)) > 0.1,
+                weight_applied: true,
+                detailed_scores: scores,
+                lawmaker_id: member.lawmaker
+            };
+        });
+
+        // 점수 순으로 정렬하고 순위 할당
+        members.sort((a, b) => b.calculated_score - a.calculated_score);
+        members.forEach((member, index) => {
+            member.rank = index + 1;
+        });
+
+        console.log(`[GlobalSync] 의원 점수 계산 완료: ${members.length}명`);
+        return members;
+    }
+
+    broadcastCalculatedData() {
+        // 🔧 데이터 유효성 검증
+        if (!this.calculatedData.parties || this.calculatedData.parties.length === 0) {
+            console.error('[GlobalSync] ❌ 계산된 정당 데이터가 없습니다');
+            return;
+        }
+        
+        if (!this.calculatedData.members || this.calculatedData.members.length === 0) {
+            console.error('[GlobalSync] ❌ 계산된 의원 데이터가 없습니다');
+            return;
+        }
+        
+        console.log(`[GlobalSync] 📊 브로드캐스트할 데이터 - 정당: ${this.calculatedData.parties.length}개, 의원: ${this.calculatedData.members.length}명`);
+        
+        const calculatedData = {
+            type: 'calculated_data_distribution',
+            source: 'percent_page', // 🔧 다른 페이지들이 인식할 수 있도록 percent_page로 위장
+            original_source: 'global_sync_manager', // 실제 출처 기록
+            timestamp: new Date().toISOString(),
+            appliedWeights: this.currentWeights,
+            
+            partyData: {
+                total: this.calculatedData.parties.length,
+                top3: this.calculatedData.parties.slice(0, 3).map(party => ({
+                    rank: party.rank,
+                    name: party.name,
+                    score: party.calculated_score,
+                    calculated_score: party.calculated_score,
+                    original_score: party.original_score,
+                    score_changed: party.score_changed,
+                    weight_applied: party.weight_applied
+                })),
+                full_list: this.calculatedData.parties
+            },
+            
+            memberData: {
+                total: this.calculatedData.members.length,
+                top3: this.calculatedData.members.slice(0, 3).map(member => ({
+                    rank: member.rank,
+                    name: member.name,
+                    party: member.party,
+                    score: member.calculated_score,
+                    calculated_score: member.calculated_score,
+                    original_score: member.original_score,
+                    score_changed: member.score_changed,
+                    weight_applied: member.weight_applied
+                })),
+                full_list: this.calculatedData.members
+            },
+            
+            calculationInfo: {
+                member_count: this.calculatedData.members.length,
+                party_count: this.calculatedData.parties.length,
+                calculation_method: 'api_weighted',
+                api_sources: [
+                    '/performance/api/party_performance/',
+                    '/performance/api/performance/',
+                    '/legislation/bill-count/'
+                ]
+            }
+        };
+        
+        // 🔧 브로드캐스트 전에 데이터 구조 로깅
+        console.log('[GlobalSync] 📡 브로드캐스트 데이터 미리보기:');
+        console.log('- partyData.full_list 길이:', calculatedData.partyData.full_list.length);
+        console.log('- memberData.full_list 길이:', calculatedData.memberData.full_list.length);
+        console.log('- TOP 정당:', calculatedData.partyData.top3[0]?.name);
+        console.log('- TOP 의원:', calculatedData.memberData.top3[0]?.name);
+
+        // BroadcastChannel로 전송
+        if (this.channel) {
+            this.channel.postMessage(calculatedData);
+            console.log('[GlobalSync] 📡 계산된 데이터 브로드캐스트 전송 (source: percent_page로 위장)');
+        }
+
+        console.log('[GlobalSync] 📡 계산된 데이터 브로드캐스트 완료');
+    }
+
+    // 현재 상태 조회 메서드
+    getCurrentData() {
+        return {
+            original: this.originalData,
+            calculated: this.calculatedData,
+            weights: this.currentWeights
+        };
+    }
+
+    // 🔧 가중치 업데이트 메서드 (실제 계산 수행)
+    async updateWeights(newWeights) {
+        if (this.isProcessing) {
+            console.log('[GlobalSync] 이미 처리 중이므로 가중치 업데이트 스킵');
+            return;
+        }
+        
+        try {
+            this.isProcessing = true;
+            console.log('[GlobalSync] 🎯 가중치 업데이트 시작:', newWeights);
+            
+            this.currentWeights = { ...newWeights };
+            await this.calculateScoresWithWeights();
+            this.broadcastCalculatedData();
+            
+            console.log('[GlobalSync] ✅ 가중치 업데이트 및 브로드캐스트 완료');
+            
+        } catch (error) {
+            console.error('[GlobalSync] ❌ 가중치 업데이트 실패:', error);
+            throw error;
+        } finally {
+            setTimeout(() => {
+                this.isProcessing = false;
+            }, 1000);
+        }
+    }
+}
+
+// 전역 인스턴스 생성
+let globalSyncManager = null;
+
+// DOM 로드 후 초기화
+document.addEventListener('DOMContentLoaded', () => {
+    globalSyncManager = new GlobalSyncManager();
+});
+
+// 전역 접근을 위한 함수들
+window.getGlobalSyncManager = () => globalSyncManager;
+window.getCurrentSyncData = () => globalSyncManager ? globalSyncManager.getCurrentData() : null;
+window.updateGlobalWeights = (weights) => {
+    if (globalSyncManager && globalSyncManager.isInitialized) {
+        console.log('[GlobalSync] 전역 가중치 업데이트 요청:', weights);
+        return globalSyncManager.updateWeights(weights);
+    } else {
+        console.warn('[GlobalSync] GlobalSyncManager가 초기화되지 않음');
+        return null;
+    }
+};

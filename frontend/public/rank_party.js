@@ -173,22 +173,36 @@ document.addEventListener('DOMContentLoaded', function() {
             // 1. BroadcastChannel 설정
             createBroadcastChannel();
             
-            // 2. localStorage 이벤트 감지
-            window.addEventListener('storage', function(e) {
-                if (e.key === 'calculated_data_distribution' && !isLoading) {
-                    try {
-                        const eventData = JSON.parse(e.newValue);
-                        console.log('[RankParty] 📢 localStorage 계산 데이터 변경 감지:', eventData.type);
-                        if (eventData.type === 'calculated_data_distribution') {
-                            handleCalculatedDataReceived(eventData);
-                        } else if (eventData.type === 'data_reset_to_original') {
-                            handleDataResetRequest(eventData);
-                        }
-                    } catch (error) {
-                        console.warn('[RankParty] localStorage 이벤트 파싱 실패:', error);
-                    }
-                }
-            });
+            // localStorage 이벤트 감지
+window.addEventListener('storage', function(e) {
+    if (e.key === 'calculated_data_distribution' && !isLoading) {
+        try {
+            // 🔧 null 체크 추가
+            if (!e.newValue || e.newValue === 'null') {
+                console.log('[MainPage] 📢 localStorage 데이터 삭제 감지 (무시)');
+                return;
+            }
+            
+            const eventData = JSON.parse(e.newValue);
+            
+            // 🔧 데이터 유효성 검증
+            if (!eventData || !eventData.type) {
+                console.warn('[MainPage] 📢 유효하지 않은 데이터 (무시)');
+                return;
+            }
+            
+            console.log('[MainPage] 📢 localStorage 계산 데이터 변경 감지:', eventData.type);
+            
+            if (eventData.type === 'calculated_data_distribution') {
+                handleCalculatedDataReceived(eventData);
+            } else if (eventData.type === 'data_reset_to_original') {
+                handleDataResetRequest(eventData);
+            }
+        } catch (error) {
+            console.warn('[MainPage] localStorage 이벤트 파싱 실패:', error);
+        }
+    }
+});
             
             console.log('[RankParty] ✅ 실시간 데이터 수신 시스템 초기화 완료');
             
@@ -904,11 +918,6 @@ document.addEventListener('DOMContentLoaded', function() {
                     </td>
                     <td style="font-weight: 600; color: ${partyColor?.main || '#333'}">
                         ${party.totalScore.toFixed(1)}%
-                        ${party.scoreChanged ? 
-                            `<div style="font-size: 10px; color: #8b5cf6; margin-top: 2px;">
-                                📡 API 계산 (원본: ${party.originalScore?.toFixed(1)}%)
-                            </div>` : ''
-                        }
                     </td>
                     <td>
                         <div style="display: flex; align-items: center; gap: 8px;">

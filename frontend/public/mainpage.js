@@ -5,8 +5,436 @@ let loadingTimeout = null;
 let weightUpdateTimeout = null;
 let weightChannel = null;
 
+// 🎯 API 계산 데이터 수신 관련 상태 (v4.0.0 추가)
+let dataReceiveState = {
+    isUsingCalculatedData: false,
+    lastDataReceived: null,
+    calculationTimestamp: null,
+    percentPageConnected: false,
+    realTimeUpdateChannel: null,
+    appliedWeights: null,
+    originalPartyData: [],
+    originalMemberData: [],
+    calculatedPartyData: [],
+    calculatedMemberData: []
+};
+
 // 정리해야 할 이벤트 리스너들
 const eventListeners = [];
+
+// === 📡 BroadcastChannel 관리 (v4.0.0 추가) ===
+function createBroadcastChannel() {
+    if (typeof BroadcastChannel === 'undefined') {
+        console.warn('[MainPage] ⚠️ BroadcastChannel을 지원하지 않는 브라우저입니다');
+        return false;
+    }
+
+    try {
+        // 기존 채널이 있으면 정리
+        if (dataReceiveState.realTimeUpdateChannel) {
+            try {
+                dataReceiveState.realTimeUpdateChannel.close();
+            } catch (e) {
+                // 이미 닫혔을 수 있음
+            }
+        }
+
+        // 🔧 통일된 채널명 사용 (v4)
+        dataReceiveState.realTimeUpdateChannel = new BroadcastChannel('client_weight_updates_v4');
+        
+        dataReceiveState.realTimeUpdateChannel.addEventListener('message', async function(event) {
+            try {
+                const data = event.data;
+                console.log('[MainPage] 📡 데이터 수신:', data.type);
+                
+                if (data.type === 'calculated_data_distribution' && data.source === 'percent_page') {
+                    await handleCalculatedDataReceived(data);
+                } else if (data.type === 'data_reset_to_original' && data.source === 'percent_page') {
+                    await handleDataResetRequest(data);
+                } else if (data.type === 'connection_check') {
+                    // percent 페이지의 연결 확인 요청에 응답
+                    safeBroadcast({
+                        type: 'connection_response',
+                        source: 'mainpage',
+                        timestamp: new Date().toISOString(),
+                        status: 'connected',
+                        data_mode: dataReceiveState.isUsingCalculatedData ? 'calculated' : 'original'
+                    });
+                    dataReceiveState.percentPageConnected = true;
+                    updateConnectionStatus();
+                }
+            } catch (error) {
+                console.warn('[MainPage] 메시지 처리 실패:', error);
+            }
+        });
+
+        // 채널 오류 처리
+        dataReceiveState.realTimeUpdateChannel.addEventListener('error', function(error) {
+            console.warn('[MainPage] BroadcastChannel 오류:', error);
+            setTimeout(createBroadcastChannel, 1000);
+        });
+        
+        console.log('[MainPage] ✅ BroadcastChannel 초기화 완료 (v4)');
+        return true;
+        
+    } catch (error) {
+        console.error('[MainPage] BroadcastChannel 초기화 실패:', error);
+        dataReceiveState.realTimeUpdateChannel = null;
+        return false;
+    }
+}
+
+// === 📡 안전한 브로드캐스트 함수 ===
+function safeBroadcast(data) {
+    try {
+        if (!dataReceiveState.realTimeUpdateChannel) {
+            if (!createBroadcastChannel()) {
+                return false;
+            }
+        }
+
+        dataReceiveState.realTimeUpdateChannel.postMessage(data);
+        return true;
+        
+    } catch (error) {
+        console.warn('[MainPage] 브로드캐스트 실패, 채널 재생성 시도:', error);
+        
+        if (createBroadcastChannel()) {
+            try {
+                dataReceiveState.realTimeUpdateChannel.postMessage(data);
+                return true;
+            } catch (retryError) {
+                console.warn('[MainPage] 재시도 후에도 브로드캐스트 실패:', retryError);
+            }
+        }
+        
+        return false;
+    }
+}
+
+// === 🔗 실시간 데이터 수신 시스템 초기화 (v4.0.0 추가) ===
+function initializeRealTimeDataReceive() {
+    console.log('[MainPage] 🔗 API 계산 데이터 수신 시스템 초기화...');
+    
+    try {
+        // 1. BroadcastChannel 설정
+        createBroadcastChannel();
+        
+        // 2. localStorage 이벤트 감지
+        window.addEventListener('storage', function(e) {
+            if (e.key === 'calculated_data_distribution' && !isLoading) {
+                try {
+                    if (!e.newValue || e.newValue === 'null') {
+                        console.log('[MainPage] 📢 localStorage 데이터 삭제 감지 (무시)');
+                        return;
+                    }
+                    
+                    const eventData = JSON.parse(e.newValue);
+                    
+                    if (!eventData || !eventData.type) {
+                        console.warn('[MainPage] 📢 유효하지 않은 데이터 (무시)');
+                        return;
+                    }
+                    
+                    console.log('[MainPage] 📢 localStorage 계산 데이터 변경 감지:', eventData.type);
+                    
+                    if (eventData.type === 'calculated_data_distribution') {
+                        handleCalculatedDataReceived(eventData);
+                    } else if (eventData.type === 'data_reset_to_original') {
+                        handleDataResetRequest(eventData);
+                    }
+                } catch (error) {
+                    console.warn('[MainPage] localStorage 이벤트 파싱 실패:', error);
+                }
+            }
+        });
+        
+        console.log('[MainPage] ✅ 실시간 데이터 수신 시스템 초기화 완료');
+        
+    } catch (error) {
+        console.error('[MainPage] 실시간 데이터 수신 시스템 초기화 실패:', error);
+    }
+}
+
+// === 🎯 핵심: percent.js에서 계산된 데이터 수신 처리 (v4.0.0 추가) ===
+async function handleCalculatedDataReceived(eventData) {
+    if (isLoading) {
+        console.log('[MainPage] 🔄 이미 처리 중입니다.');
+        return;
+    }
+
+    try {
+        isLoading = true;
+        
+        console.log('[MainPage] 🎯 계산된 데이터 수신 처리 시작...');
+        
+        // 사용자에게 알림
+        showDataUpdateNotification('percent.js에서 계산된 데이터를 적용하는 중...', 'info', 3000);
+        
+        // 🎯 계산된 데이터 저장
+        if (eventData.partyData && eventData.partyData.top3) {
+            dataReceiveState.calculatedPartyData = eventData.partyData.top3;
+        }
+        
+        if (eventData.memberData && eventData.memberData.top3) {
+            dataReceiveState.calculatedMemberData = eventData.memberData.top3;
+        }
+        
+        // 상태 업데이트
+        dataReceiveState.isUsingCalculatedData = true;
+        dataReceiveState.lastDataReceived = new Date(eventData.timestamp);
+        dataReceiveState.calculationTimestamp = eventData.timestamp;
+        dataReceiveState.appliedWeights = eventData.appliedWeights;
+        
+        // 메인페이지 UI 업데이트
+        await updateMainPageWithCalculatedData();
+        
+        // 연결 상태 업데이트
+        dataReceiveState.percentPageConnected = true;
+        updateConnectionStatus();
+        
+        // 성공 알림
+        const weightCount = eventData.appliedWeights ? Object.keys(eventData.appliedWeights).length : 0;
+        showDataUpdateNotification(
+            `✅ API 계산 데이터 적용 완료! (${weightCount}개 가중치)`, 
+            'success', 
+            4000
+        );
+        
+        console.log('[MainPage] ✅ 계산된 데이터 수신 처리 완료');
+        
+    } catch (error) {
+        console.error('[MainPage] ❌ 계산된 데이터 수신 처리 실패:', error);
+        showDataUpdateNotification(`데이터 수신 실패: ${error.message}`, 'error', 5000);
+    } finally {
+        isLoading = false;
+        showLoading(false);
+    }
+}
+
+// === 🔄 데이터 리셋 요청 처리 (v4.0.0 추가) ===
+async function handleDataResetRequest(eventData) {
+    try {
+        console.log('[MainPage] 🔄 데이터 리셋 요청 수신:', eventData.action);
+        
+        showDataUpdateNotification('원본 데이터로 복원하는 중...', 'info', 2000);
+        
+        // 계산된 데이터 상태 해제
+        dataReceiveState.isUsingCalculatedData = false;
+        dataReceiveState.lastDataReceived = null;
+        dataReceiveState.calculationTimestamp = null;
+        dataReceiveState.appliedWeights = null;
+        dataReceiveState.calculatedPartyData = [];
+        dataReceiveState.calculatedMemberData = [];
+        
+        // 원본 데이터로 복원
+        await loadMainPageData();
+        
+        updateConnectionStatus();
+        showDataUpdateNotification('✅ 원본 API 데이터로 복원되었습니다!', 'success', 3000);
+        
+    } catch (error) {
+        console.error('[MainPage] ❌ 데이터 리셋 실패:', error);
+        showDataUpdateNotification('원본 데이터 복원에 실패했습니다', 'error');
+    }
+}
+
+// === 🎨 메인페이지 계산된 데이터로 업데이트 (v4.0.0 추가) ===
+async function updateMainPageWithCalculatedData() {
+    try {
+        console.log('[MainPage] 🎨 계산된 데이터로 메인페이지 업데이트...');
+        
+        // 정당 순위 카드 업데이트
+        if (dataReceiveState.calculatedPartyData && dataReceiveState.calculatedPartyData.length > 0) {
+            const partyData = dataReceiveState.calculatedPartyData.map((party, index) => ({
+                rank: index + 1,
+                name: party.name,
+                score: Math.round(party.score || party.calculated_score || 0)
+            }));
+            
+            updatePartyRankingCard(partyData);
+        }
+        
+        // 의원 순위 카드 업데이트  
+        if (dataReceiveState.calculatedMemberData && dataReceiveState.calculatedMemberData.length > 0) {
+            const memberData = dataReceiveState.calculatedMemberData.map((member, index) => ({
+                rank: index + 1,
+                name: member.name,
+                party: member.party,
+                score: Math.round((member.score || member.calculated_score || 0) * 10) / 10
+            }));
+            
+            updateMemberRankingCard(memberData);
+        }
+        
+        // 계산된 데이터 정보 표시
+        showCalculatedDataInfo();
+        
+        console.log('[MainPage] ✅ 계산된 데이터로 메인페이지 업데이트 완료');
+        
+    } catch (error) {
+        console.error('[MainPage] ❌ 계산된 데이터로 메인페이지 업데이트 실패:', error);
+    }
+}
+
+// === 📊 계산된 데이터 정보 표시 (v4.0.0 추가) ===
+function showCalculatedDataInfo() {
+    try {
+        let infoElement = document.getElementById('mainpage-calculated-data-info');
+        if (!infoElement) {
+            infoElement = document.createElement('div');
+            infoElement.id = 'mainpage-calculated-data-info';
+            infoElement.style.cssText = `
+                margin: 15px 0; padding: 12px 20px; 
+                background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%);
+                color: white; border-radius: 10px; font-size: 14px; text-align: center;
+                box-shadow: 0 4px 12px rgba(139, 92, 246, 0.3); 
+                animation: slideInMainpage 0.6s ease-out;
+                position: relative; z-index: 100;
+            `;
+            
+            // 메인 컨테이너 상단에 추가
+            const mainContainer = document.querySelector('.main') || document.querySelector('.container') || document.body;
+            const firstCard = mainContainer.querySelector('.card');
+            if (firstCard) {
+                firstCard.parentNode.insertBefore(infoElement, firstCard);
+            } else {
+                mainContainer.appendChild(infoElement);
+            }
+        }
+        
+        const weightInfo = dataReceiveState.appliedWeights ? 
+            `(${Object.keys(dataReceiveState.appliedWeights).length}개 가중치 적용)` : '';
+        
+        const timeInfo = dataReceiveState.calculationTimestamp ? 
+            new Date(dataReceiveState.calculationTimestamp).toLocaleTimeString('ko-KR') : 
+            new Date().toLocaleTimeString('ko-KR');
+        
+        infoElement.innerHTML = `
+            <div style="display: flex; justify-content: center; align-items: center; gap: 15px; flex-wrap: wrap;">
+                <span style="font-size: 18px;">📡</span>
+                <span>메인페이지가 <strong>API 계산 데이터</strong>로 업데이트되었습니다! ${weightInfo}</span>
+                <span style="font-size: 11px; opacity: 0.9;">${timeInfo}</span>
+            </div>
+        `;
+        
+        // 애니메이션 스타일 추가
+        if (!document.getElementById('mainpage-calculated-data-styles')) {
+            const style = document.createElement('style');
+            style.id = 'mainpage-calculated-data-styles';
+            style.textContent = `
+                @keyframes slideInMainpage {
+                    from { opacity: 0; transform: translateY(-15px) scale(0.95); }
+                    to { opacity: 1; transform: translateY(0) scale(1); }
+                }
+            `;
+            document.head.appendChild(style);
+        }
+        
+        // 10초 후 자동 숨김
+        setTimeout(() => {
+            if (infoElement.parentNode) {
+                infoElement.style.opacity = '0';
+                infoElement.style.transform = 'translateY(-15px) scale(0.95)';
+                setTimeout(() => infoElement.remove(), 400);
+            }
+        }, 10000);
+        
+    } catch (error) {
+        console.warn('[MainPage] 계산 데이터 정보 표시 실패:', error);
+    }
+}
+
+// === 🔔 데이터 업데이트 전용 알림 시스템 (v4.0.0 추가) ===
+function showDataUpdateNotification(message, type = 'info', duration = 4000) {
+    try {
+        // 기존 알림 제거
+        const existingNotification = document.querySelector('.mainpage-data-update-notification');
+        if (existingNotification) {
+            existingNotification.remove();
+        }
+        
+        const notification = document.createElement('div');
+        notification.className = 'mainpage-data-update-notification';
+        notification.style.cssText = `
+            position: fixed; top: 20px; left: 50%; transform: translateX(-50%);
+            padding: 16px 30px; border-radius: 12px; z-index: 10001; font-size: 14px;
+            max-width: 550px; box-shadow: 0 8px 25px rgba(0,0,0,0.15);
+            font-family: 'Blinker', sans-serif; font-weight: 500; text-align: center;
+            opacity: 0; transform: translateX(-50%) translateY(-25px);
+            transition: all 0.5s ease; line-height: 1.5;
+            background: ${type === 'success' ? 'linear-gradient(135deg, #10b981 0%, #059669 100%)' : 
+                       type === 'error' ? 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)' : 
+                       type === 'warning' ? 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)' : 
+                       'linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%)'};
+            color: white; backdrop-filter: blur(8px);
+        `;
+        
+        notification.innerHTML = `
+            <div style="display: flex; align-items: center; justify-content: center; gap: 12px;">
+                <span style="font-size: 18px;">${type === 'success' ? '✅' : type === 'error' ? '❌' : type === 'warning' ? '⚠️' : '📡'}</span>
+                <span>${message}</span>
+                <span style="font-size: 16px;">🏠</span>
+            </div>
+        `;
+        
+        document.body.appendChild(notification);
+        
+        // 애니메이션 시작
+        setTimeout(() => {
+            notification.style.opacity = '1';
+            notification.style.transform = 'translateX(-50%) translateY(0)';
+        }, 10);
+        
+        // 자동 제거
+        setTimeout(() => {
+            if (notification.parentNode) {
+                notification.style.opacity = '0';
+                notification.style.transform = 'translateX(-50%) translateY(-25px)';
+                setTimeout(() => notification.remove(), 500);
+            }
+        }, duration);
+        
+    } catch (error) {
+        console.log(`[MainPage 데이터 알림] ${message} (${type})`);
+    }
+}
+
+// === 🎨 연결 상태 표시 업데이트 (v4.0.0 추가) ===
+function updateConnectionStatus() {
+    try {
+        let statusElement = document.getElementById('mainpage-data-sync-status');
+        if (!statusElement) {
+            statusElement = document.createElement('div');
+            statusElement.id = 'mainpage-data-sync-status';
+            statusElement.style.cssText = `
+                position: fixed; top: 10px; left: 50%; transform: translateX(-50%); z-index: 1000;
+                padding: 8px 14px; color: white; border-radius: 25px; 
+                font-size: 11px; font-weight: 600; backdrop-filter: blur(6px);
+                box-shadow: 0 3px 10px rgba(0,0,0,0.12); transition: all 0.3s ease; 
+                font-family: 'Blinker', sans-serif;
+            `;
+            document.body.appendChild(statusElement);
+        }
+        
+        if (dataReceiveState.isUsingCalculatedData && dataReceiveState.percentPageConnected) {
+            statusElement.style.background = 'rgba(139, 92, 246, 0.9)';
+            statusElement.innerHTML = '📡 API 계산 데이터 적용됨 (메인)';
+        } else if (dataReceiveState.percentPageConnected) {
+            statusElement.style.background = 'rgba(16, 185, 129, 0.9)';
+            statusElement.innerHTML = '🔗 percent 페이지 연결됨 (메인)';
+        } else if (dataReceiveState.originalPartyData.length > 0 || dataReceiveState.originalMemberData.length > 0) {
+            statusElement.style.background = 'rgba(59, 130, 246, 0.9)';
+            statusElement.innerHTML = '📊 원본 API 데이터 (메인)';
+        } else {
+            statusElement.style.background = 'rgba(107, 114, 128, 0.9)';
+            statusElement.innerHTML = '📴 기본 데이터 (메인)';
+        }
+        
+    } catch (error) {
+        console.warn('[MainPage] 연결 상태 표시 업데이트 실패:', error);
+    }
+}
 
 // === API 연결 상태 확인 ===
 function checkAPIService() {
@@ -189,6 +617,16 @@ async function fetchPartyRankingData() {
 try {
 console.log('📊 정당 순위 데이터 로드 중...');
 
+// 🎯 계산된 데이터가 있으면 우선 사용
+if (dataReceiveState.isUsingCalculatedData && dataReceiveState.calculatedPartyData.length > 0) {
+console.log('[MainPage] 📡 계산된 정당 데이터 사용');
+return dataReceiveState.calculatedPartyData.map((party, index) => ({
+    rank: index + 1,
+    name: party.name,
+    score: Math.round(party.score || party.calculated_score || 0)
+}));
+}
+
 if (!window.APIService || !window.APIService.getPartyPerformance) {
 throw new Error('정당 성과 API가 준비되지 않았습니다');
 }
@@ -230,6 +668,9 @@ return getDefaultPartyRanking();
 
 console.log('✅ 정당 순위 데이터 가공 완료:', processedData);
 
+// 🎯 원본 데이터 보관
+dataReceiveState.originalPartyData = processedData;
+
 return processedData.map((party, index) => ({
 rank: index + 1,
 name: party.name,
@@ -246,6 +687,17 @@ return getDefaultPartyRanking();
 async function fetchMemberRankingData() {
 try {
 console.log('👥 국회의원 순위 데이터 로드 중...');
+
+// 🎯 계산된 데이터가 있으면 우선 사용
+if (dataReceiveState.isUsingCalculatedData && dataReceiveState.calculatedMemberData.length > 0) {
+console.log('[MainPage] 📡 계산된 의원 데이터 사용');
+return dataReceiveState.calculatedMemberData.map((member, index) => ({
+    rank: index + 1,
+    name: member.name,
+    party: member.party,
+    score: Math.round((member.score || member.calculated_score || 0) * 10) / 10
+}));
+}
 
 if (!window.APIService || !window.APIService.getMemberPerformance) {
 throw new Error('의원 성과 API가 준비되지 않았습니다');
@@ -294,6 +746,10 @@ score: score
 });
 
 console.log('✅ 국회의원 순위 데이터 로드 완료:', top3);
+
+// 🎯 원본 데이터 보관
+dataReceiveState.originalMemberData = top3;
+
 return top3;
 
 } catch (error) {
@@ -1138,6 +1594,16 @@ console.warn('BroadcastChannel 정리 실패:', error);
 }
 }
 
+// 🎯 실시간 데이터 수신 채널 정리 (v4.0.0)
+if (dataReceiveState.realTimeUpdateChannel) {
+try {
+dataReceiveState.realTimeUpdateChannel.close();
+dataReceiveState.realTimeUpdateChannel = null;
+} catch (error) {
+console.warn('실시간 데이터 수신 채널 정리 실패:', error);
+}
+}
+
 console.log('✅ 리소스 정리 완료');
 } catch (error) {
 console.error('❌ 리소스 정리 실패:', error);
@@ -1197,6 +1663,39 @@ window.mainPageDebug = {
 reloadData: () => loadMainPageData(),
 refreshData: () => loadMainPageData(),
 
+// 🎯 v4.0.0 데이터 수신 관련 디버그 추가
+getDataReceiveState: () => dataReceiveState,
+getOriginalData: () => ({
+    party: dataReceiveState.originalPartyData,
+    member: dataReceiveState.originalMemberData
+}),
+getCalculatedData: () => ({
+    party: dataReceiveState.calculatedPartyData,
+    member: dataReceiveState.calculatedMemberData
+}),
+
+// BroadcastChannel 관련
+recreateChannel: () => {
+    console.log('[MainPage] BroadcastChannel 재생성 시도...');
+    const success = createBroadcastChannel();
+    console.log('[MainPage] 재생성 결과:', success ? '성공' : '실패');
+    return success;
+},
+
+getChannelStatus: () => {
+    return {
+        exists: !!dataReceiveState.realTimeUpdateChannel,
+        type: typeof dataReceiveState.realTimeUpdateChannel,
+        supported: typeof BroadcastChannel !== 'undefined'
+    };
+},
+
+testBroadcast: (testData = { test: true, timestamp: new Date().toISOString() }) => {
+    const success = safeBroadcast(testData);
+    console.log('[MainPage] 테스트 브로드캐스트 결과:', success ? '성공' : '실패');
+    return success;
+},
+
 checkAPIStructure: async () => {
 console.log('🔍 API 구조 확인 중...');
 try {
@@ -1236,11 +1735,20 @@ console.error('API 구조 확인 실패:', error);
 },
 
 showInfo: () => {
-console.log('📊 메인페이지 정보:');
+console.log('📊 메인페이지 정보 (v4.0.0 - API 계산 데이터 수신):');
 console.log('- API 서비스:', !!window.APIService);
 console.log('- 로딩 상태:', isLoading);
 console.log('- API 준비 상태:', window.APIService?._isReady);
 console.log('- 이벤트 리스너 수:', eventListeners.length);
+console.log('- percent 페이지 연결:', dataReceiveState.percentPageConnected ? '✅' : '❌');
+console.log('- 계산된 데이터 사용:', dataReceiveState.isUsingCalculatedData ? '✅' : '❌');
+console.log('- 마지막 데이터 수신:', dataReceiveState.lastDataReceived || '없음');
+console.log('- 적용된 가중치:', dataReceiveState.appliedWeights);
+console.log('- 원본 정당 데이터:', dataReceiveState.originalPartyData.length, '개');
+console.log('- 원본 의원 데이터:', dataReceiveState.originalMemberData.length, '개');
+console.log('- 계산된 정당 데이터:', dataReceiveState.calculatedPartyData.length, '개');
+console.log('- 계산된 의원 데이터:', dataReceiveState.calculatedMemberData.length, '개');
+console.log('- BroadcastChannel 상태:', this.getChannelStatus());
 },
 
 testNewAPIMapping: async () => {
@@ -1280,6 +1788,9 @@ if (checkAPIService()) {
 setTimeout(loadMainPageData, 1500);
 }
 
+// 🎯 실시간 데이터 수신 시스템 초기화 (v4.0.0)
+initializeRealTimeDataReceive();
+
 // 네비게이션 설정
 setupNavigation();
 
@@ -1314,7 +1825,7 @@ cleanup();
 window.addEventListener('beforeunload', beforeUnloadHandler);
 eventListeners.push({ element: window, event: 'beforeunload', handler: beforeUnloadHandler });
 
-console.log('✅ 메인페이지 스크립트 로드 완료 (개선된 안정성)');
+console.log('✅ 메인페이지 스크립트 로드 완료 (v4.0.0 - API 계산 데이터 수신)');
 console.log('🎯 디버깅: window.mainPageDebug.showInfo()');
 console.log('🧪 API 테스트: window.mainPageDebug.testNewAPIMapping()');
 
