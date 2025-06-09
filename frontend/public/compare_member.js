@@ -1503,31 +1503,20 @@ async function applyWeightsAndSync() {
     console.log('  - window.compareMemberDebug.testComparison("의원1", "의원2") : 비교 API 테스트');
 });
 
-document.addEventListener('DOMContentLoaded', () => {
-    // 1. 저장된 localStorage 값 복원
-    const savedWeights = localStorage.getItem('user_weights');
-    if (savedWeights) {
+document.addEventListener('DOMContentLoaded', function () {
+    // localStorage에 저장된 user_weights 불러오기
+    const saved = localStorage.getItem('user_weights');
+    if (saved) {
         try {
-            const weights = JSON.parse(savedWeights);
+            const weights = JSON.parse(saved);
             document.querySelectorAll('.weight-input').forEach(input => {
                 const key = input.dataset.weight;
                 if (weights.hasOwnProperty(key)) {
-                    input.value = weights[key]; // input 채우기
+                    input.value = weights[key];
                 }
             });
         } catch (e) {
-            console.warn('가중치 복원 오류:', e);
+            // 값 복원 실패시 무시
         }
     }
-
-    // 2. UI 및 상태 계산 (값 복원 이후 실행)
-    updateTotal();
-
-    // 3. input 입력 이벤트 등록
-    document.querySelectorAll('.weight-input').forEach(input => {
-        input.addEventListener('input', updateTotal);
-    });
-
-    // 4. 로그 메시지
-    addLog('🎯 가중치 동기화 준비 완료', 'success');
 });
