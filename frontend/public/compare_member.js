@@ -600,7 +600,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 committeeRank: committeeInfo.rank,
                 committeeList: committeeInfo.committees, // 모든 위원회 목록
                 
-                // 투표 관련 (performance API 데이터 사용)
+                // 투표 관련 (performance API 기반)
                 invalidVotes: Math.round(invalidVoteRatio * 1000), // 건수로 변환
                 voteConsistency: Math.round(voteMatchRatio * 100),
                 voteInconsistency: Math.round(voteMismatchRatio * 100),
@@ -1294,113 +1294,25 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
 
-// 복원 함수수
-function restoreWeightsFromStorage() {
-    const saved = localStorage.getItem('user_weights');
-    if (saved) {
+    // === 🚀 페이지 초기화 ===
+    async function initializePage() {
+        console.log('🚀 국회의원 비교 페이지 초기화 중...');
+        
         try {
-            const weights = JSON.parse(saved);
-            document.querySelectorAll('.weight-input').forEach(input => {
-                const key = input.dataset.weight;
-                if (weights.hasOwnProperty(key)) {
-                    input.value = weights[key];
-                }
-            });
-        } catch (e) {}
-    }
-}
-
-// 🎯 가중치 적용 및 동기화 (무한루프 방지 개선)
-async function applyWeightsAndSync() {
-    // 🔧 중복 처리 방지
-    if (isProcessing) {
-        addLog('이미 처리 중입니다. 잠시 후 다시 시도해주세요.', 'warning');
-        return;
-    }
-
-    const inputs = document.querySelectorAll('.weight-input');
-    let total = 0;
-    const weights = {};
-
-    inputs.forEach(input => {
-        const value = parseFloat(input.value) || 0;
-        weights[input.dataset.weight] = value;
-        total += value;
-    });
-
-    if (Math.abs(total - 100) > 0.1) {
-        addLog(`가중치 총합이 100%가 아닙니다 (현재: ${total.toFixed(1)}%)`, 'error');
-        return;
-    }
-
-    // 🔧 처리 상태 설정
-    isProcessing = true;
-    const processingTimeout = setTimeout(() => {
-        isProcessing = false;
-        addLog('처리 타임아웃 - 상태 리셋', 'warning');
-    }, PROCESSING_TIMEOUT);
-
-    try {
-        addLog('가중치 적용 및 동기화 시작...', 'info');
-
-        // GlobalSyncManager를 통해 실제 API 데이터로 가중치 적용
-        const syncManager = window.getGlobalSyncManager();
-
-        if (!syncManager) {
-            addLog('GlobalSyncManager가 초기화되지 않았습니다', 'error');
-            throw new Error('GlobalSyncManager 없음');
+            // 국회의원 데이터 로드
+            await fetchMemberData();
+            
+            // 검색 및 필터 기능 초기화
+            initializeSearchAndFilter();
+            
+            showNotification('국회의원 비교 페이지 로드 완료', 'success');
+            console.log('✅ 국회의원 비교 페이지 초기화 완료');
+            
+        } catch (error) {
+            console.error('❌ 페이지 초기화 오류:', error);
+            showError('페이지 로드 중 오류가 발생했습니다');
         }
-
-        if (!syncManager.isInitialized) {
-            addLog('API 데이터를 로딩 중입니다. 잠시 후 다시 시도해주세요', 'warning');
-            throw new Error('GlobalSyncManager 초기화 안됨');
-        }
-
-        addLog('API 데이터를 사용하여 가중치 적용 중...', 'info');
-        addLog(`🔧 DEBUG: 가중치 = ${JSON.stringify(weights)}`, 'info');
-
-        const currentData = syncManager.getCurrentData();
-        addLog(`🔧 DEBUG: 원본 정당 ${currentData?.original?.parties?.length || 0}개`, 'info');
-        addLog(`🔧 DEBUG: 원본 의원 ${currentData?.original?.members?.length || 0}명`, 'info');
-
-        addLog('🔧 DEBUG: syncManager.updateWeights 호출 중...', 'info');
-        await syncManager.updateWeights(weights);
-        addLog('🔧 DEBUG: syncManager.updateWeights 완료', 'success');
-
-        // ✅ localStorage 저장 추가
-        localStorage.setItem('user_weights', JSON.stringify(weights));
-        addLog('✅ localStorage에 가중치 저장 완료', 'success');
-
-        const updatedData = syncManager.getCurrentData();
-        addLog(`🔧 DEBUG: 계산된 정당 ${updatedData?.calculated?.parties?.length || 0}개`, 'info');
-        addLog(`🔧 DEBUG: 계산된 의원 ${updatedData?.calculated?.members?.length || 0}명`, 'info');
-
-        if (updatedData?.calculated?.parties?.length > 0) {
-            const topParty = updatedData.calculated.parties[0];
-            addLog(`🔧 DEBUG: 1위 정당 = ${topParty.name} (${topParty.calculated_score}점)`, 'info');
-        }
-
-        addLog(`✨ 동기화 완료! 가중치 ${Object.keys(weights).length}개 적용`, 'success');
-        addLog('🎯 실제 API 데이터에 가중치가 적용되었습니다!', 'success');
-        addLog('📊 다른 탭들을 확인해보세요!', 'success');
-
-    } catch (error) {
-        addLog(`동기화 실패: ${error.message}`, 'error');
-        addLog(`🔧 DEBUG: 오류 상세 = ${error.stack}`, 'error');
-        console.error('가중치 적용 오류:', error);
-
-        // 실패시 fallback으로 테스트 데이터 사용
-        addLog('⚠️ Fallback: 테스트 데이터로 동기화 시도', 'warning');
-        await applyWeightsWithFallback(weights);
-    } finally {
-        clearTimeout(processingTimeout);
-        setTimeout(() => {
-            isProcessing = false;
-            addLog('처리 상태 리셋 완료', 'info');
-        }, 2000);
     }
-}
-
 
     // === 🔧 기본 새로고침 함수들 (가중치 제거) ===
     
@@ -1517,22 +1429,4 @@ async function applyWeightsAndSync() {
     console.log('  - window.compareMemberDebug.testAPIService() : APIService 테스트');
     console.log('  - window.compareMemberDebug.clearSelection() : 선택 초기화');
     console.log('  - window.compareMemberDebug.testComparison("의원1", "의원2") : 비교 API 테스트');
-});
-
-document.addEventListener('DOMContentLoaded', function () {
-    // localStorage에 저장된 user_weights 불러오기
-    const saved = localStorage.getItem('user_weights');
-    if (saved) {
-        try {
-            const weights = JSON.parse(saved);
-            document.querySelectorAll('.weight-input').forEach(input => {
-                const key = input.dataset.weight;
-                if (weights.hasOwnProperty(key)) {
-                    input.value = weights[key];
-                }
-            });
-        } catch (e) {
-            // 값 복원 실패시 무시
-        }
-    }
 });
