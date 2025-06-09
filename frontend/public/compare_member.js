@@ -600,7 +600,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 committeeRank: committeeInfo.rank,
                 committeeList: committeeInfo.committees, // 모든 위원회 목록
                 
-                // 투표 관련 (performance API 기반)
+                // 투표 관련 (performance API 데이터 사용)
                 invalidVotes: Math.round(invalidVoteRatio * 1000), // 건수로 변환
                 voteConsistency: Math.round(voteMatchRatio * 100),
                 voteInconsistency: Math.round(voteMismatchRatio * 100),
@@ -1304,6 +1304,40 @@ document.addEventListener('DOMContentLoaded', function() {
             
             // 검색 및 필터 기능 초기화
             initializeSearchAndFilter();
+            
+            // === 📡 percent.js 가중치 실시간 반영 ===
+            function initializeWeightBroadcast() {
+                if (typeof BroadcastChannel === 'undefined') return;
+                const channel = new BroadcastChannel('client_weight_updates_v4');
+                channel.addEventListener('message', async function(event) {
+                    const data = event.data;
+                    if (data && data.type === 'calculated_data_distribution' && data.memberData && data.memberData.full_list) {
+                        // 의원 비교 데이터 실시간 반영
+                        mpData = data.memberData.full_list.map(m => ({
+                            ...m,
+                            stats: {
+                                attendance: m.calculated_score,
+                                billPassRate: m.calculated_score,
+                                petitionProposed: 0,
+                                petitionResult: 0,
+                                invalidVotes: 0,
+                                voteConsistency: 0,
+                                voteInconsistency: 0,
+                                committeeRank: 1
+                            }
+                        }));
+                        // UI 리렌더 (선택된 의원 있으면 갱신)
+                        selectedMembers.forEach((memberName, idx) => {
+                            const found = mpData.find(m => m.name === memberName);
+                            if (found) {
+                                updateMPCard(idx, found, null, null);
+                            }
+                        });
+                        showNotification('가중치 적용 데이터가 반영되었습니다!', 'success');
+                    }
+                });
+            }
+            initializeWeightBroadcast();
             
             showNotification('국회의원 비교 페이지 로드 완료', 'success');
             console.log('✅ 국회의원 비교 페이지 초기화 완료');

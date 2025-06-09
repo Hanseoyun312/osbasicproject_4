@@ -974,6 +974,48 @@ document.addEventListener('DOMContentLoaded', function() {
             // 이벤트 핸들러 설정
             setupDropdownHandlers();
             
+            // === 📡 percent.js 가중치 실시간 반영 ===
+            function initializeWeightBroadcast() {
+                if (typeof BroadcastChannel === 'undefined') return;
+                const channel = new BroadcastChannel('client_weight_updates_v4');
+                channel.addEventListener('message', async function(event) {
+                    const data = event.data;
+                    if (data && data.type === 'calculated_data_distribution' && data.partyData && data.partyData.full_list) {
+                        // 정당 비교 데이터 실시간 반영
+                        partyStats = {};
+                        const fullList = data.partyData.full_list;
+                        // 기존 선택된 정당만 stats 갱신
+                        selectedParties.forEach((partyName, idx) => {
+                            if (partyName) {
+                                const found = fullList.find(p => p.name === partyName);
+                                if (found) {
+                                    partyStats[partyName] = {
+                                        partyName: found.name,
+                                        rank: found.rank,
+                                        attendanceRate: found.calculated_score, // 예시: 점수로 대체
+                                        billPassSum: found.calculated_score,
+                                        billPassRate: found.calculated_score,
+                                        petitionProposed: 0,
+                                        petitionPassed: 0,
+                                        chairmanCount: 0,
+                                        secretaryCount: 0,
+                                        invalidVoteRatio: 0,
+                                        voteMatchRatio: 0,
+                                        voteMismatchRatio: 0,
+                                        totalScore: found.calculated_score,
+                                        rankSource: 'broadcast',
+                                        // ...필요시 추가 필드...
+                                    };
+                                    updatePartyCard(idx, found.name, partyStats[found.name]);
+                                }
+                            }
+                        });
+                        showNotification('가중치 적용 데이터가 반영되었습니다!', 'success');
+                    }
+                });
+            }
+            initializeWeightBroadcast();
+            
             showNotification('정당 비교 페이지 로드 완료', 'success');
             console.log('✅ 정당 비교 페이지 초기화 완료');
             
