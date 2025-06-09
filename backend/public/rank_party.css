@@ -1,0 +1,342 @@
+/* 메인 콘텐츠 스타일 */
+.content-container {
+    width: 100%;
+    padding: 0 15px;
+    margin-top: 40px; 
+}
+
+.page-title {
+    text-align: center;
+    font-size: 36px; 
+    font-weight: 600;
+    margin-bottom: 40px;
+    position: relative;
+}
+
+.settings-btn {
+    position: absolute;
+    right: 0;
+    top: 40px;
+    background-color: white;
+    border: 1px solid var(--side2);
+    border-radius: 5px;
+    padding: 4px 10px;
+    display: flex;
+    align-items: center;
+    cursor: pointer;
+    font-size: 14px;
+    transition: all 0.2s ease;
+}
+
+.settings-btn:hover {
+    background-color: var(--main2);
+    border-color: var(--light-blue);
+}
+
+.settings-btn svg {
+    margin-left: 5px;
+    transition: transform 0.2s ease;
+}
+
+.settings-btn:hover svg {
+    transform: rotate(90deg);
+}
+
+.dropdown {
+    position: absolute;
+    right: 0;
+    top: 67px; 
+    background-color: white;
+    border: 1px solid var(--side2);
+    border-radius: 5px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    z-index: 100;
+    display: none;
+    width: 160px;
+    font-size: 14px;
+}
+
+.dropdown.active {
+    display: block;
+    animation: fadeInDown 0.2s ease-out;
+}
+
+@keyframes fadeInDown {
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.dropdown-item {
+    padding: 8px 12px; 
+    cursor: pointer;
+    transition: background-color 0.2s;
+    white-space: nowrap;
+    text-align: center;
+}
+
+.dropdown-item:hover {
+    background-color: var(--main2);
+}
+
+.dropdown-item.active {
+    background-color: var(--main1);
+    font-weight: 500;
+}
+
+/* API 상태 표시 스타일 */
+.api-status {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 20px;
+    padding: 10px;
+    background-color: var(--side);
+    border-radius: 8px;
+    font-size: 12px;
+}
+
+/* 환경 배지 스타일 (styles.css에서 가져옴) */
+.env-badge {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 12px;
+    font-size: 11px;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.env-badge.vercel {
+    background-color: var(--success-color, #4caf50);
+    color: white;
+}
+
+.env-badge.local {
+    background-color: var(--info-color, #2196f3);
+    color: white;
+}
+
+/* 테이블 스타일 */
+.party-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-bottom: 50px;
+    margin-top: 15px; /* 테이블 상단 여백 추가 */
+}
+
+.party-table th {
+    background-color: var(--side);
+    padding: 15px;
+    text-align: left;
+    font-weight: 500;
+    border-bottom: 1px solid var(--side2);
+}
+
+.party-table th:first-child {
+    width: 80px;
+    text-align: center;
+}
+
+.party-table th.home-header {
+    text-align: center;
+}
+
+.party-table td {
+    padding: 20px 15px;
+    border-bottom: 1px solid var(--side2);
+}
+
+.party-table tbody tr {
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.party-table tbody tr:hover {
+    background-color: var(--main2);
+    transform: translateY(-1px);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+
+.rank-cell {
+    text-align: center;
+    font-size: 24px;
+    font-weight: 700;
+}
+
+.home-header {
+    text-align: center;
+}
+
+.home-icon {
+    text-align: center;
+}
+
+.home-icon svg {
+    width: 24px;
+    height: 24px;
+    color: var(--example);
+    cursor: pointer;
+    transition: color 0.2s;
+}
+
+.home-icon a {
+    display: inline-block;
+    text-decoration: none;
+}
+
+.home-icon a:hover svg {
+    color: var(--light-blue);
+}
+
+/* 로딩 스피너 스타일 */
+.loading-spinner {
+    display: inline-block;
+    width: 20px;
+    height: 20px;
+    border: 2px solid var(--side2);
+    border-radius: 50%;
+    border-top-color: var(--light-blue);
+    animation: spin 1s ease-in-out infinite;
+    margin-right: 8px;
+    vertical-align: middle;
+}
+
+@keyframes spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+/* 반응형 디자인 */
+@media screen and (max-width: 1024px) {
+    .content-container {
+        padding: 0 10px;
+    }
+
+    .page-title {
+        font-size: 32px;
+        margin-bottom: 35px;
+    }
+
+    .party-table th,
+    .party-table td {
+        padding: 15px 10px;
+    }
+}
+
+@media screen and (max-width: 768px) {
+    .page-title {
+        font-size: 28px;
+        margin-bottom: 30px;
+    }
+
+    .party-table th:nth-child(4),
+    .party-table td:nth-child(4) {
+        display: none;
+    }
+
+    .settings-btn {
+        padding: 3px 10px;
+        font-size: 14px;
+        top: 35px;
+    }
+
+    .dropdown {
+        top: 62px;
+        width: 140px;
+    }
+
+    .party-table th,
+    .party-table td {
+        padding: 12px 8px;
+    }
+
+    .rank-cell {
+        font-size: 22px;
+    }
+}
+
+@media screen and (max-width: 567px) {
+    .content-container {
+        padding: 0 5px;
+    }
+
+    .page-title {
+        font-size: 24px;
+        margin-bottom: 25px;
+    }
+
+    .settings-btn {
+        top: 30px;
+        font-size: 12px;
+        padding: 2px 8px;
+    }
+
+    .dropdown {
+        top: 57px;
+        width: 120px;
+        font-size: 12px;
+    }
+
+    .dropdown-item {
+        padding: 6px 8px;
+    }
+
+    .party-table th:nth-child(4),
+    .party-table td:nth-child(4) {
+        display: none;
+    }
+
+    .rank-cell {
+        font-size: 20px;
+    }
+
+    .party-table th,
+    .party-table td {
+        padding: 10px 5px;
+        font-size: 14px;
+    }
+
+    .home-icon svg {
+        width: 20px;
+        height: 20px;
+    }
+}
+
+/* 고대비 모드 지원 */
+@media (prefers-contrast: high) {
+    .party-table {
+        border: 2px solid var(--string);
+    }
+    
+    .party-table th,
+    .party-table td {
+        border: 1px solid var(--string);
+    }
+    
+    .rank-cell {
+        color: var(--string);
+        font-weight: 900;
+    }
+}
+
+/* 애니메이션 줄이기 설정 */
+@media (prefers-reduced-motion: reduce) {
+    .party-table tbody tr,
+    .settings-btn,
+    .home-icon svg,
+    .loading-spinner {
+        transition: none;
+        animation: none;
+    }
+    
+    .dropdown.active {
+        animation: none;
+    }
+}

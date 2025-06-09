@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <title>국회의원 실적 챗봇</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 700px;
+            margin: 40px auto;
+            padding: 20px;
+            background-color: #f7f7f7;
+        }
+
+        h2 {
+            text-align: center;
+        }
+
+        #chat-box {
+            border: 1px solid #ccc;
+            padding: 15px;
+            height: 300px;
+            overflow-y: auto;
+            background-color: #fff;
+        }
+
+        .message {
+            margin-bottom: 10px;
+        }
+
+        .user {
+            font-weight: bold;
+            color: #0056b3;
+        }
+
+        .bot {
+            color: #333;
+        }
+
+        #input-area {
+            margin-top: 15px;
+            display: flex;
+        }
+
+        #message-input {
+            flex: 1;
+            padding: 10px;
+            font-size: 16px;
+        }
+
+        #send-button {
+            padding: 10px 20px;
+            font-size: 16px;
+            margin-left: 10px;
+        }
+    </style>
+</head>
+<body>
+    <h2>국회의원 실적 챗봇</h2>
+
+    <div id="chat-box"></div>
+
+    <div id="input-area">
+        <input type="text" id="message-input" placeholder="질문을 입력하세요..." />
+        <button id="send-button">전송</button>
+    </div>
+
+    <script>
+        const chatBox = document.getElementById("chat-box");
+        const messageInput = document.getElementById("message-input");
+        const sendButton = document.getElementById("send-button");
+
+        function appendMessage(sender, text) {
+            const messageDiv = document.createElement("div");
+            messageDiv.classList.add("message");
+
+            if (sender === "user") {
+                messageDiv.innerHTML = `<span class="user">나:</span> ${text}`;
+            } else {
+                messageDiv.innerHTML = `<span class="bot">챗봇:</span> ${text}`;
+            }
+
+            chatBox.appendChild(messageDiv);
+            chatBox.scrollTop = chatBox.scrollHeight;
+        }
+
+        sendButton.addEventListener("click", () => {
+            const message = messageInput.value.trim();
+            if (!message) return;
+
+            appendMessage("user", message);
+            messageInput.value = "";
+
+            fetch("/api/ask/", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify({ message: message })
+            })
+            .then(response => response.json())
+            .then(data => {
+                appendMessage("bot", data.response);
+            })
+            .catch(error => {
+                appendMessage("bot", "❌ 오류가 발생했습니다.");
+                console.error(error);
+            });
+        });
+
+        messageInput.addEventListener("keydown", (e) => {
+            if (e.key === "Enter") {
+                sendButton.click();
+            }
+        });
+    </script>
+</body>
+</html>
