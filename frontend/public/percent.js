@@ -481,7 +481,7 @@ function initializePercentSync() {
         input.addEventListener('input', updateTotal);
     });
 
-    // localStorage에 저장된 가중치가 있으면 복원
+    // === localStorage에 저장된 가중치 복원 (가장 마지막에 실행) ===
     const savedWeights = localStorage.getItem('user_weights');
     if (savedWeights) {
         try {
@@ -496,7 +496,7 @@ function initializePercentSync() {
         }
     }
 
-    // 초기 총합 계산
+    // 복원 후 반드시 updateTotal() 호출 (UI/상태 동기화)
     updateTotal();
     
     // 페이지 로드 완료 메시지
