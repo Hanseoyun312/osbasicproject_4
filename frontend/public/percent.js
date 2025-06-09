@@ -1,6 +1,6 @@
 /**
- * percent.js (v5.0.0) - API 통합 가중치 계산 시스템
- * 개선사항: 3개 API 데이터를 받아서 가중치 적용 후 다른 페이지들에 완성된 데이터 전달
+ * percent.js (v5.1.0) - API 통합 가중치 계산 시스템 (오류 수정 버전)
+ * 수정사항: 함수 스코프 문제 해결, 중복 함수 정리, 참조 오류 수정
  */
 
 document.addEventListener('DOMContentLoaded', function() {
@@ -25,7 +25,7 @@ document.addEventListener('DOMContentLoaded', function() {
         MEMBER_API_MAPPING: {
             '간사': 'committee_secretary_count',
             '무효표 및 기권': 'invalid_vote_ratio',
-            '본회의 가결': 'bill_total_percent', // bill-count API의 total을 퍼센트로 변환
+            '본회의 가결': 'bill_total_percent',
             '위원장': 'committee_leader_count',
             '청원 소개': 'petition_score',
             '청원 결과': 'petition_result_score',
@@ -105,10 +105,92 @@ document.addEventListener('DOMContentLoaded', function() {
         return userId;
     }
 
+    // === 🔧 현재 활성 가중치 추출 (오류 수정 버전) ===
+    function getCurrentActiveWeights() {
+        const activeWeights = {};
+        
+        try {
+            const percentInputs = elements.percentInputs || document.querySelectorAll('.percent-input');
+            
+            percentInputs.forEach(input => {
+                const label = input.dataset.item;
+                
+                if (!input.disabled) {
+                    const value = parseFloat(input.value.replace('%', '')) || 0;
+                    activeWeights[label] = value;
+                }
+            });
+            
+            return activeWeights;
+        } catch (error) {
+            console.warn('[Percent] 가중치 수집 실패:', error);
+            return {};
+        }
+    }
+
+    // 🎯 getCurrentWeights 별칭 함수 (호환성) - 오류 수정
+    function getCurrentWeights() {
+        return getCurrentActiveWeights();
+    }
+    
+    // 유효한 가중치 확인
+    function hasValidWeights() {
+        const weights = getCurrentActiveWeights();
+        const total = Object.values(weights).reduce((sum, w) => sum + w, 0);
+        return Math.abs(total - 100) < 0.1 && Object.keys(weights).length > 0;
+    }
+
+    // === 🎯 현재 계산된 의원 순위 가져오기 (오류 수정) ===
+    function getCurrentMemberRanking() {
+        try {
+            if (appState.calculatedMemberData && appState.calculatedMemberData.length > 0) {
+                return appState.calculatedMemberData.map((member, index) => ({
+                    rank: index + 1,
+                    name: member.name,
+                    party: member.party,
+                    calculated_score: member.calculated_score,
+                    original_score: member.original_score,
+                    score_changed: member.score_changed,
+                    weight_applied: member.weight_applied,
+                    calculation_timestamp: member.calculation_timestamp
+                }));
+            } else {
+                console.warn('[Percent] calculatedMemberData가 없음');
+                return [];
+            }
+        } catch (error) {
+            console.warn('[Percent] 의원 순위 수집 실패:', error);
+            return [];
+        }
+    }
+
+    // === 🎯 현재 계산된 정당 순위 가져오기 (오류 수정) ===
+    function getCurrentPartyRanking() {
+        try {
+            if (appState.calculatedPartyData && appState.calculatedPartyData.length > 0) {
+                return appState.calculatedPartyData.map((party, index) => ({
+                    rank: index + 1,
+                    name: party.name,
+                    calculated_score: party.calculated_score,
+                    original_score: party.original_score,
+                    score_changed: party.score_changed,
+                    weight_applied: party.weight_applied,
+                    calculation_timestamp: party.calculation_timestamp
+                }));
+            } else {
+                console.warn('[Percent] calculatedPartyData가 없음');
+                return [];
+            }
+        } catch (error) {
+            console.warn('[Percent] 정당 순위 수집 실패:', error);
+            return [];
+        }
+    }
+
     // === 🚀 초기화 함수 ===
     async function initializeApp() {
         try {
-            console.log('[Percent] 🚀 API 통합 가중치 시스템 초기화... (v5.0.0)');
+            console.log('[Percent] 🚀 API 통합 가중치 시스템 초기화... (v5.1.0)');
             console.log('[Percent] 👤 사용자 ID:', appState.userId);
             
             showLoadingState(true);
@@ -643,6 +725,30 @@ document.addEventListener('DOMContentLoaded', function() {
             // 🎉 성공 알림
             showNotification(`API 데이터 기반으로 가중치가 적용되었습니다! 의원 ${appState.calculatedMemberData.length}명, 정당 ${appState.calculatedPartyData.length}개`, 'success', 5000);
             
+            // 🎯 추가: 다른 페이지로 계산된 데이터 전송 (오류 수정)
+            setTimeout(() => {
+                try {
+                    const calculatedData = {
+                        appliedWeights: activeWeights,
+                        memberRanking: appState.calculatedMemberData,
+                        partyRanking: appState.calculatedPartyData,
+                        timestamp: new Date().toISOString()
+                    };
+                    
+                    if (typeof enhancedUpdateMemberRanking === 'function') {
+                        enhancedUpdateMemberRanking();
+                    }
+                    
+                    if (typeof sendCalculatedDataToPages === 'function') {
+                        sendCalculatedDataToPages(calculatedData);
+                    }
+                    
+                    console.log('[Percent] ✅ 다른 페이지 동기화 완료');
+                } catch (syncError) {
+                    console.warn('[Percent] 페이지 동기화 실패:', syncError);
+                }
+            }, 200);
+            
             return true;
 
         } catch (error) {
@@ -656,31 +762,6 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
 
-    // === 🔧 유틸리티 함수들 ===
-    
-    // 현재 활성 가중치 추출
-    function getCurrentActiveWeights() {
-        const activeWeights = {};
-        
-        elements.percentInputs.forEach(input => {
-            const label = input.dataset.item;
-            
-            if (!input.disabled) {
-                const value = parseFloat(input.value.replace('%', '')) || 0;
-                activeWeights[label] = value;
-            }
-        });
-        
-        return activeWeights;
-    }
-    
-    // 유효한 가중치 확인
-    function hasValidWeights() {
-        const weights = getCurrentActiveWeights();
-        const total = Object.values(weights).reduce((sum, w) => sum + w, 0);
-        return Math.abs(total - 100) < 0.1 && Object.keys(weights).length > 0;
-    }
-    
     // 정당명 정규화
     function normalizePartyName(partyName) {
         if (!partyName || typeof partyName !== 'string') return '정보없음';
@@ -948,7 +1029,7 @@ document.addEventListener('DOMContentLoaded', function() {
             
             // 메타데이터 추가
             settingsData._timestamp = Date.now();
-            settingsData._version = '5.0.0';
+            settingsData._version = '5.1.0';
             settingsData._lastApplied = appState.lastApplied?.toISOString();
             settingsData._mode = 'api_integrated';
             settingsData._userId = appState.userId;
@@ -1037,6 +1118,18 @@ document.addEventListener('DOMContentLoaded', function() {
                 detail: resetData
             }));
 
+            // 🎯 추가: 리셋 후 다른 페이지에 알림
+            setTimeout(() => {
+                try {
+                    if (typeof sendDataResetRequest === 'function') {
+                        sendDataResetRequest();
+                        console.log('[Percent] ✅ 리셋 알림 전송 완료');
+                    }
+                } catch (resetError) {
+                    console.warn('[Percent] 리셋 알림 전송 실패:', resetError);
+                }
+            }, 500);
+
             // 7. API 데이터 다시 로드
             setTimeout(() => {
                 loadAllApiData();
@@ -1080,9 +1173,24 @@ document.addEventListener('DOMContentLoaded', function() {
                 // 🎯 100% 도달 시 API 기반 자동 적용
                 if (hasValidWeights()) {
                     // 즉시 API 기반 순위 적용
-                    appState.autoApplyTimer = setTimeout(() => {
+                    appState.autoApplyTimer = setTimeout(async () => {
                         console.log('[Percent] 🔄 API 기반 자동 순위 적용 (100% 도달)');
-                        applyWeightsToRanking();
+                        const success = await applyWeightsToRanking();
+                        
+                        // 🎯 추가: 자동 적용 후 다른 페이지 동기화 (오류 수정)
+                        if (success) {
+                            setTimeout(() => {
+                                try {
+                                    if (typeof enhancedUpdateMemberRanking === 'function') {
+                                        enhancedUpdateMemberRanking();
+                                        console.log('[Percent] ✅ 자동 적용 후 페이지 동기화 완료');
+                                    }
+                                } catch (syncError) {
+                                    console.warn('[Percent] 자동 동기화 실패:', syncError);
+                                }
+                            }, 300);
+                        }
+                        
                     }, WEIGHT_CONFIG.AUTO_APPLY_DELAY);
                 }
                 
@@ -1236,9 +1344,9 @@ document.addEventListener('DOMContentLoaded', function() {
                 <div style="display: flex; align-items: center; gap: 10px;">
                     <span style="font-size: 16px;">📡</span>
                     <div>
-                        <div style="font-weight: 600;">API 통합 가중치 모드 (v5.0.0)</div>
+                        <div style="font-weight: 600;">API 통합 가중치 모드 (v5.1.0)</div>
                         <div style="font-size: 11px; opacity: 0.9; margin-top: 2px;">
-                            실제 API 데이터로 점수 계산 • 3개 API 통합 • 실시간 배포
+                            실제 API 데이터로 점수 계산 • 3개 API 통합 • 실시간 배포 • 오류 수정
                         </div>
                     </div>
                 </div>
@@ -1407,7 +1515,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     bill_count: appState.billCountData.length
                 },
                 metadata: {
-                    version: '5.0.0',
+                    version: '5.1.0',
                     exportDate: new Date().toISOString(),
                     source: 'percent_api_integrated_v5',
                     lastApplied: appState.lastApplied?.toISOString(),
@@ -1490,6 +1598,31 @@ document.addEventListener('DOMContentLoaded', function() {
         event.target.value = '';
     }
 
+    // === 🔧 향상된 순위 업데이트 함수 (오류 수정) ===
+    function enhancedUpdateMemberRanking() {
+        try {
+            console.log('[Percent] 🎯 향상된 순위 업데이트 시작...');
+            
+            // 계산된 데이터 수집 - getCurrentActiveWeights 사용
+            const calculatedData = {
+                appliedWeights: getCurrentActiveWeights(), // 수정된 부분
+                memberRanking: getCurrentMemberRanking(),
+                partyRanking: getCurrentPartyRanking(),
+                timestamp: new Date().toISOString()
+            };
+            
+            // 다른 페이지로 전송
+            if (typeof sendCalculatedDataToPages === 'function') {
+                sendCalculatedDataToPages(calculatedData);
+            }
+            
+            console.log('[Percent] ✅ 향상된 순위 업데이트 완료');
+            
+        } catch (error) {
+            console.error('[Percent] ❌ 향상된 순위 업데이트 실패:', error);
+        }
+    }
+
     // === 🌐 전역 함수 등록 ===
     window.ApiIntegratedWeightSystem = {
         init: initializeApp,
@@ -1507,8 +1640,15 @@ document.addEventListener('DOMContentLoaded', function() {
             parties: appState.calculatedPartyData
         }),
         getUserId: () => appState.userId,
-        version: '5.0.0'
+        version: '5.1.0'
     };
+
+    // === 🔧 전역 함수 노출 (오류 수정) ===
+    window.getCurrentActiveWeights = getCurrentActiveWeights;
+    window.getCurrentWeights = getCurrentWeights;
+    window.getCurrentMemberRanking = getCurrentMemberRanking;
+    window.getCurrentPartyRanking = getCurrentPartyRanking;
+    window.enhancedUpdateMemberRanking = enhancedUpdateMemberRanking;
 
     // === 🔧 개발자 도구 (API 통합 버전) ===
     window.debugApiWeights = {
@@ -1574,8 +1714,29 @@ document.addEventListener('DOMContentLoaded', function() {
             return success;
         },
         
+        // 함수 존재 여부 확인
+        checkFunctions: () => {
+            const functions = [
+                'getCurrentWeights',
+                'getCurrentActiveWeights', 
+                'getCurrentMemberRanking',
+                'getCurrentPartyRanking',
+                'enhancedUpdateMemberRanking',
+                'sendCalculatedDataToPages',
+                'safeBroadcast',
+                'createBroadcastChannel'
+            ];
+            
+            functions.forEach(funcName => {
+                const exists = typeof window[funcName] === 'function';
+                console.log(`[Debug] ${funcName}: ${exists ? '✅ 존재' : '❌ 없음'}`);
+            });
+        },
+        
         help: () => {
-            console.log('[Percent] 🔧 API 통합 가중치 시스템 디버그 도구 (v5.0.0):');
+            console.log('[Percent] 🔧 API 통합 가중치 시스템 디버그 도구 (v5.1.0 - 오류 수정):');
+            console.log('  함수 확인:');
+            console.log('  - checkFunctions(): 핵심 함수 존재 여부 확인');
             console.log('  API 관련:');
             console.log('  - loadApiData(): 3개 API 데이터 다시 로드');
             console.log('  - getMemberApiData(): 의원 API 데이터 확인');
@@ -1597,8 +1758,714 @@ document.addEventListener('DOMContentLoaded', function() {
     // === 🚀 앱 시작 ===
     initializeApp();
 
-    console.log('[Percent] ✅ API 통합 가중치 시스템 로드 완료 (v5.0.0)');
+    console.log('[Percent] ✅ API 통합 가중치 시스템 로드 완료 (v5.1.0 - 오류 수정)');
     console.log('[Percent] 📡 API 통합 모드 - 3개 API 데이터 기반 점수 계산');
     console.log('[Percent] 👤 사용자 ID:', appState.userId);
     console.log('[Percent] 🔧 디버그: window.debugApiWeights.help()');
+});
+
+// === 📡 크로스 페이지 데이터 동기화 시스템 (오류 수정 버전) ===
+
+// 전역 상태 관리
+let dataSyncState = {
+    broadcastChannel: null,
+    connectedPages: new Set(),
+    lastCalculatedData: null,
+    syncInProgress: false
+};
+
+// === 📡 BroadcastChannel 초기화 ===
+function initializeDataSyncSystem() {
+    try {
+        console.log('[Percent] 🔗 데이터 동기화 시스템 초기화...');
+        
+        // BroadcastChannel 생성
+        if (typeof BroadcastChannel !== 'undefined') {
+            dataSyncState.broadcastChannel = new BroadcastChannel('client_weight_updates_v4');
+            
+            // 메시지 수신 처리
+            dataSyncState.broadcastChannel.addEventListener('message', handlePageMessage);
+            
+            // 오류 처리
+            dataSyncState.broadcastChannel.addEventListener('error', function(error) {
+                console.warn('[Percent] BroadcastChannel 오류:', error);
+                setTimeout(initializeDataSyncSystem, 1000); // 재시도
+            });
+            
+            console.log('[Percent] ✅ BroadcastChannel 초기화 완료');
+        } else {
+            console.warn('[Percent] ⚠️ BroadcastChannel 미지원');
+        }
+        
+        // 연결된 페이지 확인
+        setTimeout(checkConnectedPages, 1000);
+        
+        // 주기적으로 연결 상태 확인 (10초마다)
+        setInterval(checkConnectedPages, 10000);
+        
+    } catch (error) {
+        console.error('[Percent] 데이터 동기화 시스템 초기화 실패:', error);
+    }
+}
+
+// === 📡 안전한 브로드캐스트 함수 (오류 수정) ===
+function safeBroadcastToPages(data) {
+    try {
+        // BroadcastChannel로 전송
+        if (dataSyncState.broadcastChannel) {
+            dataSyncState.broadcastChannel.postMessage(data);
+        }
+        
+        // localStorage 이벤트로도 전송 (백업)
+        try {
+            localStorage.setItem('calculated_data_distribution', JSON.stringify(data));
+            setTimeout(() => {
+                localStorage.removeItem('calculated_data_distribution');
+            }, 100);
+        } catch (e) {
+            console.warn('[Percent] localStorage 백업 전송 실패:', e);
+        }
+        
+        return true;
+        
+    } catch (error) {
+        console.error('[Percent] 페이지 브로드캐스트 실패:', error);
+        return false;
+    }
+}
+
+// === 📨 페이지 메시지 처리 ===
+function handlePageMessage(event) {
+    try {
+        const data = event.data;
+        
+        if (data.type === 'connection_response') {
+            dataSyncState.connectedPages.add(data.source);
+            console.log(`[Percent] 📡 페이지 연결 확인: ${data.source}`);
+            updateConnectionDisplay();
+            
+            // 이미 계산된 데이터가 있다면 즉시 전송
+            if (dataSyncState.lastCalculatedData) {
+                setTimeout(() => {
+                    sendCalculatedDataToPages(dataSyncState.lastCalculatedData);
+                }, 500);
+            }
+        }
+        
+    } catch (error) {
+        console.warn('[Percent] 페이지 메시지 처리 실패:', error);
+    }
+}
+
+// === 🔍 연결된 페이지 확인 ===
+function checkConnectedPages() {
+    try {
+        const checkMessage = {
+            type: 'connection_check',
+            source: 'percent_page',
+            timestamp: new Date().toISOString()
+        };
+        
+        // 기존 연결 정보 초기화
+        dataSyncState.connectedPages.clear();
+        
+        safeBroadcastToPages(checkMessage);
+        
+        // 2초 후 연결 상태 업데이트
+        setTimeout(() => {
+            updateConnectionDisplay();
+        }, 2000);
+        
+    } catch (error) {
+        console.warn('[Percent] 연결된 페이지 확인 실패:', error);
+    }
+}
+
+// === 📊 계산된 데이터를 다른 페이지로 전송 (오류 수정) ===
+function sendCalculatedDataToPages(calculatedData) {
+    if (dataSyncState.syncInProgress) {
+        console.log('[Percent] 🔄 이미 동기화 진행 중...');
+        return;
+    }
+    
+    try {
+        dataSyncState.syncInProgress = true;
+        
+        console.log('[Percent] 📡 계산된 데이터를 다른 페이지로 전송 시작...');
+        
+        // 전송할 데이터 준비
+        const syncData = {
+            type: 'calculated_data_distribution',
+            source: 'percent_page',
+            timestamp: new Date().toISOString(),
+            appliedWeights: calculatedData.appliedWeights || {},
+            
+            // 정당 데이터 (rank_party.js용)
+            partyData: {
+                top3: calculatedData.partyRanking?.slice(0, 3) || [],
+                full_list: calculatedData.partyRanking || []
+            },
+            
+            // 의원 데이터 (rank_member.js용)
+            memberData: {
+                top3: calculatedData.memberRanking?.slice(0, 3) || [],
+                full_list: calculatedData.memberRanking || []
+            }
+        };
+        
+        // 데이터 유효성 검증
+        if (!validateSyncData(syncData)) {
+            throw new Error('전송할 데이터가 유효하지 않습니다');
+        }
+        
+        // 마지막 계산 데이터 저장
+        dataSyncState.lastCalculatedData = calculatedData;
+        
+        // 다른 페이지로 전송
+        const success = safeBroadcastToPages(syncData);
+        
+        if (success) {
+            const partyCount = syncData.partyData.full_list.length;
+            const memberCount = syncData.memberData.full_list.length;
+            const weightCount = Object.keys(syncData.appliedWeights).length;
+            
+            console.log(`[Percent] ✅ 계산 데이터 전송 완료: 정당 ${partyCount}개, 의원 ${memberCount}명, 가중치 ${weightCount}개`);
+            
+            // 성공 알림 표시
+            if (typeof showDataSyncNotification === 'function') {
+                showDataSyncNotification(
+                    `✅ 계산된 데이터를 ${dataSyncState.connectedPages.size}개 페이지로 전송 완료!`,
+                    'success'
+                );
+            }
+            
+            // 연결 상태 업데이트
+            updateConnectionDisplay();
+            
+        } else {
+            throw new Error('브로드캐스트 전송 실패');
+        }
+        
+    } catch (error) {
+        console.error('[Percent] ❌ 계산 데이터 전송 실패:', error);
+        if (typeof showDataSyncNotification === 'function') {
+            showDataSyncNotification(`데이터 전송 실패: ${error.message}`, 'error');
+        }
+    } finally {
+        dataSyncState.syncInProgress = false;
+    }
+}
+
+// === 🔄 원본 데이터 복원 요청 전송 ===
+function sendDataResetRequest() {
+    try {
+        console.log('[Percent] 🔄 원본 데이터 복원 요청 전송...');
+        
+        const resetData = {
+            type: 'data_reset_to_original',
+            source: 'percent_page',
+            timestamp: new Date().toISOString(),
+            action: 'reset_to_original'
+        };
+        
+        const success = safeBroadcastToPages(resetData);
+        
+        if (success) {
+            console.log('[Percent] ✅ 원본 데이터 복원 요청 전송 완료');
+            if (typeof showDataSyncNotification === 'function') {
+                showDataSyncNotification('원본 데이터 복원 요청을 전송했습니다', 'info');
+            }
+            
+            // 마지막 계산 데이터 초기화
+            dataSyncState.lastCalculatedData = null;
+        }
+        
+    } catch (error) {
+        console.error('[Percent] ❌ 원본 데이터 복원 요청 전송 실패:', error);
+    }
+}
+
+// === ✅ 데이터 유효성 검증 ===
+function validateSyncData(data) {
+    try {
+        if (!data || typeof data !== 'object') return false;
+        if (!data.type || !data.source || !data.timestamp) return false;
+        if (!data.partyData || !data.memberData) return false;
+        if (!Array.isArray(data.partyData.full_list)) return false;
+        if (!Array.isArray(data.memberData.full_list)) return false;
+        
+        return true;
+    } catch (error) {
+        console.warn('[Percent] 데이터 유효성 검증 실패:', error);
+        return false;
+    }
+}
+
+// === 🔔 데이터 동기화 알림 시스템 ===
+function showDataSyncNotification(message, type = 'info', duration = 4000) {
+    try {
+        // 기존 알림 제거
+        const existing = document.querySelector('.percent-sync-notification');
+        if (existing) existing.remove();
+        
+        const notification = document.createElement('div');
+        notification.className = 'percent-sync-notification';
+        notification.style.cssText = `
+            position: fixed; top: 80px; right: 20px; z-index: 10001;
+            padding: 12px 20px; border-radius: 8px; font-size: 14px;
+            max-width: 400px; box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            font-family: 'Blinker', sans-serif; font-weight: 500;
+            opacity: 0; transform: translateX(100%);
+            transition: all 0.3s ease;
+            background: ${type === 'success' ? 'linear-gradient(135deg, #10b981 0%, #059669 100%)' : 
+                       type === 'error' ? 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)' : 
+                       type === 'warning' ? 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)' : 
+                       'linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%)'};
+            color: white;
+        `;
+        
+        notification.innerHTML = `
+            <div style="display: flex; align-items: center; gap: 10px;">
+                <span style="font-size: 16px;">
+                    ${type === 'success' ? '✅' : type === 'error' ? '❌' : type === 'warning' ? '⚠️' : '📡'}
+                </span>
+                <span>${message}</span>
+            </div>
+        `;
+        
+        document.body.appendChild(notification);
+        
+        // 애니메이션
+        setTimeout(() => {
+            notification.style.opacity = '1';
+            notification.style.transform = 'translateX(0)';
+        }, 10);
+        
+        // 자동 제거
+        setTimeout(() => {
+            if (notification.parentNode) {
+                notification.style.opacity = '0';
+                notification.style.transform = 'translateX(100%)';
+                setTimeout(() => notification.remove(), 300);
+            }
+        }, duration);
+        
+    } catch (error) {
+        console.log(`[Percent 동기화] ${message} (${type})`);
+    }
+}
+
+// === 🎨 연결 상태 표시 ===
+function updateConnectionDisplay() {
+    try {
+        let statusElement = document.getElementById('percent-connection-status');
+        if (!statusElement) {
+            statusElement = document.createElement('div');
+            statusElement.id = 'percent-connection-status';
+            statusElement.style.cssText = `
+                position: fixed; bottom: 20px; left: 20px; z-index: 1000;
+                padding: 8px 12px; background: rgba(59, 130, 246, 0.9);
+                color: white; border-radius: 20px; font-size: 11px;
+                font-weight: 500; backdrop-filter: blur(4px);
+                box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+                transition: all 0.3s ease;
+            `;
+            document.body.appendChild(statusElement);
+        }
+        
+        const connectedCount = dataSyncState.connectedPages.size;
+        const pages = Array.from(dataSyncState.connectedPages);
+        
+        if (connectedCount > 0) {
+            statusElement.style.background = 'rgba(16, 185, 129, 0.9)';
+            statusElement.innerHTML = `🔗 ${connectedCount}개 페이지 연결됨 (${pages.join(', ')})`;
+        } else {
+            statusElement.style.background = 'rgba(107, 114, 128, 0.9)';
+            statusElement.innerHTML = '📴 연결된 페이지 없음';
+        }
+        
+    } catch (error) {
+        console.warn('[Percent] 연결 상태 표시 업데이트 실패:', error);
+    }
+}
+
+// === 🚀 시스템 초기화 ===
+
+// DOM 로드 후 초기화
+document.addEventListener('DOMContentLoaded', function() {
+    // 잠시 후 동기화 시스템 초기화 (다른 초기화 완료 후)
+    setTimeout(initializeDataSyncSystem, 1000);
+});
+
+// === 🔧 전역 함수 등록 ===
+
+// 디버깅용 전역 함수
+window.percentDataSync = {
+    // 상태 확인
+    getState: () => dataSyncState,
+    getConnectedPages: () => Array.from(dataSyncState.connectedPages),
+    
+    // 수동 동기화
+    syncData: () => {
+        if (dataSyncState.lastCalculatedData) {
+            sendCalculatedDataToPages(dataSyncState.lastCalculatedData);
+        } else {
+            console.warn('[Percent] 전송할 계산 데이터가 없습니다');
+        }
+    },
+    
+    // 연결 확인
+    checkConnections: () => checkConnectedPages(),
+    
+    // 리셋
+    resetData: () => sendDataResetRequest(),
+    
+    // 테스트
+    testBroadcast: () => {
+        const testData = {
+            type: 'test',
+            source: 'percent_page',
+            timestamp: new Date().toISOString(),
+            message: 'Test broadcast from percent page'
+        };
+        return safeBroadcastToPages(testData);
+    },
+    
+    // 정보 표시
+    showInfo: () => {
+        console.log('[Percent] 📊 데이터 동기화 시스템 정보:');
+        console.log('- 연결된 페이지:', dataSyncState.connectedPages.size, '개');
+        console.log('- 페이지 목록:', Array.from(dataSyncState.connectedPages));
+        console.log('- BroadcastChannel:', !!dataSyncState.broadcastChannel);
+        console.log('- 마지막 계산 데이터:', !!dataSyncState.lastCalculatedData);
+        console.log('- 동기화 진행중:', dataSyncState.syncInProgress);
+    }
+};
+
+// === 🚨 긴급 동기화 해결책 ===
+
+// 긴급 수동 동기화 버튼 생성
+function createEmergencySyncButton() {
+    try {
+        // 기존 버튼 제거
+        const existingBtn = document.getElementById('emergency-sync-btn');
+        if (existingBtn) existingBtn.remove();
+        
+        // 긴급 동기화 버튼 생성
+        const button = document.createElement('button');
+        button.id = 'emergency-sync-btn';
+        button.innerHTML = '🔄 다른 페이지 강제 동기화';
+        button.style.cssText = `
+            position: fixed; top: 10px; right: 10px; z-index: 9999;
+            padding: 10px 15px; background: #ef4444; color: white;
+            border: none; border-radius: 6px; font-size: 12px;
+            cursor: pointer; box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+        `;
+        
+        button.addEventListener('click', function() {
+            emergencyDataSync();
+        });
+        
+        document.body.appendChild(button);
+        console.log('[Emergency] ✅ 긴급 동기화 버튼 생성됨');
+        
+    } catch (error) {
+        console.error('[Emergency] 긴급 버튼 생성 실패:', error);
+    }
+}
+
+// 긴급 데이터 동기화
+function emergencyDataSync() {
+    try {
+        console.log('[Emergency] 🚨 긴급 데이터 동기화 시작...');
+        
+        // 1. 현재 계산된 데이터 수집
+        const currentData = {
+            appliedWeights: getCurrentActiveWeights(),
+            memberRanking: getCurrentMemberRanking(),
+            partyRanking: getCurrentPartyRanking(),
+            timestamp: new Date().toISOString(),
+            syncMethod: 'emergency_manual'
+        };
+        
+        console.log('[Emergency] 수집된 데이터:', currentData);
+        
+        // 2. LocalStorage에 강제 저장 (다른 페이지에서 감지)
+        const emergencyData = {
+            type: 'emergency_data_sync',
+            source: 'percent_page',
+            data: currentData,
+            timestamp: new Date().toISOString()
+        };
+        
+        localStorage.setItem('emergency_calculated_data', JSON.stringify(emergencyData));
+        
+        // 3. 잠시 후 제거 (이벤트 발생을 위해)
+        setTimeout(() => {
+            localStorage.removeItem('emergency_calculated_data');
+        }, 500);
+        
+        // 4. 추가로 sessionStorage도 활용
+        sessionStorage.setItem('latest_calculated_data', JSON.stringify(emergencyData));
+        
+        // 5. 사용자에게 알림
+        alert('다른 페이지 강제 동기화 완료!\n다른 탭들을 새로고침해주세요.');
+        
+        console.log('[Emergency] ✅ 긴급 동기화 완료');
+        
+    } catch (error) {
+        console.error('[Emergency] ❌ 긴급 동기화 실패:', error);
+        alert('긴급 동기화 실패. 콘솔을 확인해주세요.');
+    }
+}
+
+// 수동 페이지 새로고침 요청
+function requestPageRefresh() {
+    try {
+        const refreshMessage = {
+            type: 'force_refresh_request',
+            source: 'percent_page',
+            timestamp: new Date().toISOString(),
+            message: '가중치 변경으로 인한 페이지 새로고침 요청'
+        };
+        
+        // BroadcastChannel로 전송
+        if (dataSyncState.broadcastChannel) {
+            dataSyncState.broadcastChannel.postMessage(refreshMessage);
+        }
+        
+        // localStorage로도 전송
+        localStorage.setItem('page_refresh_request', JSON.stringify(refreshMessage));
+        setTimeout(() => {
+            localStorage.removeItem('page_refresh_request');
+        }, 100);
+        
+        console.log('[Emergency] 페이지 새로고침 요청 전송');
+        
+    } catch (error) {
+        console.error('[Emergency] 새로고침 요청 실패:', error);
+    }
+}
+
+// 다른 페이지들에 추가할 긴급 수신 코드
+function addEmergencyListeners() {
+    try {
+        // LocalStorage 긴급 이벤트 감지
+        window.addEventListener('storage', function(e) {
+            if (e.key === 'emergency_calculated_data') {
+                try {
+                    const emergencyData = JSON.parse(e.newValue);
+                    console.log('[Emergency] 긴급 데이터 수신:', emergencyData);
+                    
+                    // 기존 handleCalculatedDataReceived 함수 호출
+                    if (typeof handleCalculatedDataReceived === 'function') {
+                        handleCalculatedDataReceived({
+                            type: 'calculated_data_distribution',
+                            source: 'percent_page',
+                            timestamp: emergencyData.timestamp,
+                            appliedWeights: emergencyData.data.appliedWeights,
+                            partyData: {
+                                top3: emergencyData.data.partyRanking?.slice(0, 3) || [],
+                                full_list: emergencyData.data.partyRanking || []
+                            },
+                            memberData: {
+                                top3: emergencyData.data.memberRanking?.slice(0, 3) || [],
+                                full_list: emergencyData.data.memberRanking || []
+                            }
+                        });
+                    }
+                    
+                } catch (error) {
+                    console.error('[Emergency] 긴급 데이터 처리 실패:', error);
+                }
+            }
+            
+            // 강제 새로고침 요청 처리
+            if (e.key === 'page_refresh_request') {
+                try {
+                    const refreshData = JSON.parse(e.newValue);
+                    console.log('[Emergency] 새로고침 요청 수신:', refreshData);
+                    
+                    if (confirm('가중치가 변경되었습니다. 페이지를 새로고침하시겠습니까?')) {
+                        location.reload();
+                    }
+                    
+                } catch (error) {
+                    console.error('[Emergency] 새로고침 요청 처리 실패:', error);
+                }
+            }
+        });
+        
+        // 페이지 로드시 최신 데이터 확인
+        window.addEventListener('load', function() {
+            setTimeout(() => {
+                try {
+                    const latestData = sessionStorage.getItem('latest_calculated_data');
+                    if (latestData) {
+                        const data = JSON.parse(latestData);
+                        console.log('[Emergency] 페이지 로드시 최신 데이터 발견:', data);
+                        
+                        // 5초 이내의 데이터만 적용
+                        const dataTime = new Date(data.timestamp);
+                        const now = new Date();
+                        if (now - dataTime < 5000) {
+                            // 긴급 데이터 적용 로직...
+                        }
+                    }
+                } catch (error) {
+                    console.warn('[Emergency] 페이지 로드시 데이터 확인 실패:', error);
+                }
+            }, 1000);
+        });
+        
+        console.log('[Emergency] ✅ 긴급 리스너 추가 완료');
+        
+    } catch (error) {
+        console.error('[Emergency] 긴급 리스너 추가 실패:', error);
+    }
+}
+
+// 강제 새로고침 옵션이 포함된 동기화
+function syncWithRefreshOption() {
+    try {
+        // 일반 동기화 시도
+        if (typeof enhancedUpdateMemberRanking === 'function') {
+            enhancedUpdateMemberRanking();
+        }
+        
+        // 2초 후 연결 상태 확인
+        setTimeout(() => {
+            const connectedPages = window.percentDataSync?.getConnectedPages() || [];
+            
+            if (connectedPages.length === 0) {
+                // 연결된 페이지가 없으면 사용자에게 선택권 제공
+                if (confirm('다른 페이지와의 연결이 감지되지 않습니다.\n다른 탭들에 새로고침을 요청하시겠습니까?')) {
+                    requestPageRefresh();
+                    emergencyDataSync();
+                }
+            }
+        }, 2000);
+        
+    } catch (error) {
+        console.error('[Emergency] 동기화 with 새로고침 옵션 실패:', error);
+    }
+}
+
+// 동기화 상태 표시
+function createSyncStatusIndicator() {
+    try {
+        let indicator = document.getElementById('sync-status-indicator');
+        if (!indicator) {
+            indicator = document.createElement('div');
+            indicator.id = 'sync-status-indicator';
+            indicator.style.cssText = `
+                position: fixed; top: 50px; right: 10px; z-index: 9998;
+                padding: 8px 12px; background: #6b7280; color: white;
+                border-radius: 20px; font-size: 11px; font-weight: 500;
+                transition: all 0.3s ease; cursor: pointer;
+            `;
+            indicator.innerHTML = '📡 동기화 상태 확인 중...';
+            
+            indicator.addEventListener('click', function() {
+                window.percentDataSync?.showInfo();
+            });
+            
+            document.body.appendChild(indicator);
+        }
+        
+        // 상태 업데이트
+        const updateStatus = () => {
+            const connectedPages = window.percentDataSync?.getConnectedPages() || [];
+            const count = connectedPages.length;
+            
+            if (count > 0) {
+                indicator.style.background = '#10b981';
+                indicator.innerHTML = `✅ ${count}개 페이지 연결됨`;
+            } else {
+                indicator.style.background = '#ef4444';
+                indicator.innerHTML = '❌ 연결된 페이지 없음';
+            }
+        };
+        
+        // 주기적 상태 업데이트
+        setInterval(updateStatus, 3000);
+        updateStatus();
+        
+    } catch (error) {
+        console.error('[Emergency] 상태 표시기 생성 실패:', error);
+    }
+}
+
+// 긴급 시스템 초기화
+function initializeEmergencySystem() {
+    try {
+        console.log('[Emergency] 🚨 긴급 동기화 시스템 초기화...');
+        
+        // 긴급 버튼 생성
+        createEmergencySyncButton();
+        
+        // 상태 표시기 생성
+        createSyncStatusIndicator();
+        
+        // 긴급 리스너 추가
+        addEmergencyListeners();
+        
+        console.log('[Emergency] ✅ 긴급 시스템 초기화 완료');
+        
+    } catch (error) {
+        console.error('[Emergency] 긴급 시스템 초기화 실패:', error);
+    }
+}
+
+// DOM 로드 후 긴급 시스템 초기화
+document.addEventListener('DOMContentLoaded', function() {
+    setTimeout(initializeEmergencySystem, 2000);
+});
+
+// === 🔧 전역 함수 등록 (오류 수정 완료) ===
+window.emergencySync = emergencyDataSync;
+window.requestRefresh = requestPageRefresh;
+window.syncWithRefresh = syncWithRefreshOption;
+window.sendCalculatedDataToPages = sendCalculatedDataToPages;
+window.sendDataResetRequest = sendDataResetRequest;
+window.safeBroadcastToPages = safeBroadcastToPages;
+window.validateSyncData = validateSyncData;
+window.showDataSyncNotification = showDataSyncNotification;
+
+console.log('[Percent] ✅ 가중치 변경 동기화 시스템 로드 완료 (v5.1.0 - 오류 수정)');
+console.log('[Emergency] ✅ 긴급 동기화 해결책 로드 완료');
+
+// === 🎯 최종 초기화 확인 ===
+document.addEventListener('DOMContentLoaded', function() {
+    setTimeout(() => {
+        console.log('[Percent] 🔧 최종 함수 확인...');
+        
+        // 핵심 함수들 존재 여부 확인
+        const criticalFunctions = [
+            'getCurrentActiveWeights',
+            'getCurrentMemberRanking', 
+            'getCurrentPartyRanking',
+            'enhancedUpdateMemberRanking',
+            'sendCalculatedDataToPages',
+            'emergencyDataSync'
+        ];
+        
+        let allFunctionsReady = true;
+        criticalFunctions.forEach(funcName => {
+            if (typeof window[funcName] !== 'function') {
+                console.error(`[Percent] ❌ 필수 함수 누락: ${funcName}`);
+                allFunctionsReady = false;
+            } else {
+                console.log(`[Percent] ✅ ${funcName} 함수 준비됨`);
+            }
+        });
+        
+        if (allFunctionsReady) {
+            console.log('[Percent] 🎉 모든 핵심 함수가 준비되었습니다!');
+            console.log('[Percent] 🔧 테스트 명령: window.debugApiWeights.checkFunctions()');
+        } else {
+            console.error('[Percent] ❌ 일부 핵심 함수가 누락되었습니다!');
+        }
+        
+    }, 3000);
 });
