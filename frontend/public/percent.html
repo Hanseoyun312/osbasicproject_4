@@ -3,287 +3,685 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>백일하 - 상세퍼센트</title>
-    <!-- 외부 스타일시트 연결 -->
-    <link rel="stylesheet" href="styles.css">
-    <link rel="stylesheet" href="percent.css">
+    <title>백일하 － 상세 퍼센트</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Noto+Sans+KR:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            /* Modern Color Palette */
+            --primary-gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            --secondary-gradient: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            --success-gradient: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+            --warning-gradient: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);
+            --danger-gradient: linear-gradient(135deg, #fa709a 0%, #fee140 100%);
+            
+            /* Glassmorphism Colors */
+            --glass-bg: rgba(255, 255, 255, 0.25);
+            --glass-border: rgba(255, 255, 255, 0.18);
+            --dark-glass: rgba(0, 0, 0, 0.1);
+            
+            /* Text Colors */
+            --text-primary: #2d3748;
+            --text-secondary: #4a5568;
+            --text-muted: #718096;
+            --text-white: #ffffff;
+            
+            /* Background */
+            --bg-primary: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            --bg-secondary: #f7fafc;
+            
+            /* Shadows */
+            --shadow-soft: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+            --shadow-medium: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+            --shadow-large: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+            --shadow-glow: 0 0 20px rgba(102, 126, 234, 0.4);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', 'Noto Sans KR', sans-serif;
+            background: #ffffff;
+            min-height: 100vh;
+            color: var(--text-primary);
+            overflow-x: hidden;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 2rem;
+            position: relative;
+            z-index: 1;
+        }
+
+        /* Header Styles */
+        header {
+            text-align: center;
+            margin-bottom: 3rem;
+        }
+
+        .logo {
+            background: #ffffff;
+            border: 2px solid #e2e8f0;
+            border-radius: 20px;
+            padding: 1.5rem;
+            display: inline-block;
+            transition: all 0.3s ease;
+            box-shadow: var(--shadow-medium);
+        }
+
+        .logo:hover {
+            transform: translateY(-5px);
+            box-shadow: var(--shadow-large);
+        }
+
+        .logo img {
+            height: 60px;
+            width: auto;
+            filter: brightness(1.1);
+        }
+
+        /* Main Container */
+        .percent-sync-container {
+            display: grid;
+            gap: 2rem;
+            grid-template-columns: 1fr;
+        }
+
+        /* Card Styles */
+        .card {
+            background: #ffffff;
+            border: 2px solid #e2e8f0;
+            border-radius: 24px;
+            padding: 2rem;
+            box-shadow: var(--shadow-medium);
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: var(--primary-gradient);
+        }
+
+        .card:hover {
+            transform: translateY(-8px);
+            box-shadow: var(--shadow-large);
+        }
+
+        .card h3 {
+            font-size: 1.5rem;
+            font-weight: 600;
+            margin-bottom: 1.5rem;
+            color: var(--text-primary);
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        /* Instructions Styles */
+        .instructions ol {
+            list-style: none;
+            counter-reset: step-counter;
+        }
+
+        .instructions li {
+            counter-increment: step-counter;
+            margin-bottom: 1rem;
+            padding: 1rem;
+            background: #f8fafc;
+            border-radius: 12px;
+            border-left: 4px solid #667eea;
+            position: relative;
+            transition: all 0.3s ease;
+        }
+
+        .instructions li:hover {
+            background: #e2e8f0;
+            transform: translateX(5px);
+        }
+
+        .instructions li::before {
+            content: counter(step-counter);
+            position: absolute;
+            left: -15px;
+            top: 50%;
+            transform: translateY(-50%);
+            background: var(--primary-gradient);
+            color: white;
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 600;
+            font-size: 0.9rem;
+            box-shadow: var(--shadow-soft);
+        }
+
+        .note {
+            margin-top: 1.5rem;
+            padding: 1rem;
+            background: #f0fff4;
+            border: 2px solid #9ae6b4;
+            border-radius: 12px;
+            font-size: 0.9rem;
+            color: var(--text-secondary);
+        }
+
+        /* Weight Grid */
+        .weight-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 1rem;
+            margin-bottom: 2rem;
+        }
+
+        .weight-item {
+            background: #ffffff;
+            border: 2px solid #e2e8f0;
+            border-radius: 16px;
+            padding: 1.5rem;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .weight-item::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 2px;
+            background: var(--success-gradient);
+            transform: scaleX(0);
+            transition: transform 0.3s ease;
+        }
+
+        .weight-item:hover::before {
+            transform: scaleX(1);
+        }
+
+        .weight-item:hover {
+            background: #f8fafc;
+            transform: translateY(-2px);
+            box-shadow: var(--shadow-soft);
+            border-color: #667eea;
+        }
+
+        .weight-item label {
+            display: block;
+            font-weight: 500;
+            margin-bottom: 0.5rem;
+            color: var(--text-primary);
+            font-size: 0.9rem;
+        }
+
+        .weight-input {
+            width: 100%;
+            padding: 0.75rem;
+            border: 2px solid #e2e8f0;
+            border-radius: 12px;
+            background: #ffffff;
+            color: var(--text-primary);
+            font-size: 1.1rem;
+            font-weight: 600;
+            text-align: center;
+            transition: all 0.3s ease;
+        }
+
+        .weight-input:focus {
+            outline: none;
+            border-color: #667eea;
+            background: #ffffff;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        /* Total Display */
+        .total-display {
+            background: #ffffff;
+            border: 2px solid #e2e8f0;
+            border-radius: 20px;
+            padding: 1.5rem;
+            text-align: center;
+            font-size: 1.25rem;
+            font-weight: 600;
+            margin-bottom: 2rem;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .total-display::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 100%;
+            background: linear-gradient(45deg, transparent 30%, rgba(255, 255, 255, 0.1) 50%, transparent 70%);
+            transform: translateX(-100%);
+            animation: shimmer 3s infinite;
+        }
+
+        @keyframes shimmer {
+            0% { transform: translateX(-100%); }
+            50% { transform: translateX(100%); }
+            100% { transform: translateX(100%); }
+        }
+
+        #totalValue {
+            font-size: 2rem;
+            font-weight: 700;
+            background: var(--primary-gradient);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        #totalStatus {
+            margin-left: 1rem;
+            font-size: 1rem;
+            font-weight: 500;
+        }
+
+        .total-display.success #totalStatus {
+            color: #48bb78;
+        }
+
+        .total-display.error #totalStatus {
+            color: #f56565;
+        }
+
+        /* Button Styles */
+        .btn {
+            padding: 1rem 2rem;
+            border: none;
+            border-radius: 16px;
+            font-weight: 600;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+            margin: 0.5rem;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .btn::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+            transition: left 0.5s;
+        }
+
+        .btn:hover::before {
+            left: 100%;
+        }
+
+        .btn:hover {
+            transform: translateY(-3px);
+            box-shadow: var(--shadow-large);
+        }
+
+        .btn:active {
+            transform: translateY(-1px);
+        }
+
+        .btn-success {
+            background: var(--success-gradient);
+            color: var(--text-white);
+            box-shadow: 0 4px 15px rgba(79, 172, 254, 0.4);
+        }
+
+        .btn-primary {
+            background: var(--primary-gradient);
+            color: var(--text-white);
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn-warning {
+            background: var(--warning-gradient);
+            color: var(--text-primary);
+            box-shadow: 0 4px 15px rgba(67, 233, 123, 0.4);
+        }
+
+        .btn-danger {
+            background: var(--danger-gradient);
+            color: var(--text-white);
+            box-shadow: 0 4px 15px rgba(250, 112, 154, 0.4);
+        }
+
+        /* Status Display */
+        .status-display {
+            background: #f8fafc;
+            border: 2px solid #e2e8f0;
+            border-radius: 16px;
+            padding: 1.5rem;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9rem;
+            line-height: 1.6;
+            max-height: 300px;
+            overflow-y: auto;
+            white-space: pre-line;
+            color: var(--text-secondary);
+            position: relative;
+        }
+
+        .status-display::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 2px;
+            background: var(--success-gradient);
+            animation: loading 2s infinite;
+        }
+
+        @keyframes loading {
+            0% { transform: translateX(-100%); }
+            50% { transform: translateX(0%); }
+            100% { transform: translateX(100%); }
+        }
+
+        /* Button Container */
+        .btn-container {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 1rem;
+            margin: 2rem 0;
+        }
+
+        /* Responsive Design */
+        @media (max-width: 768px) {
+            .container {
+                padding: 1rem;
+            }
+
+            .weight-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .btn {
+                width: 100%;
+                margin: 0.25rem 0;
+            }
+
+            .btn-container {
+                flex-direction: column;
+            }
+
+            .card {
+                padding: 1.5rem;
+            }
+
+            .instructions li {
+                padding: 0.75rem;
+                margin-left: 1rem;
+            }
+        }
+
+        /* Scrollbar Styling */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: #f1f5f9;
+            border-radius: 4px;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: var(--primary-gradient);
+            border-radius: 4px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: var(--secondary-gradient);
+        }
+
+        /* Accessibility */
+        @media (prefers-reduced-motion: reduce) {
+            *,
+            *::before,
+            *::after {
+                animation-duration: 0.01ms !important;
+                animation-iteration-count: 1 !important;
+                transition-duration: 0.01ms !important;
+            }
+        }
+
+        /* Focus styles for accessibility */
+        .btn:focus,
+        .weight-input:focus {
+            outline: 3px solid rgba(102, 126, 234, 0.5);
+            outline-offset: 2px;
+        }
+    </style>
 </head>
 <body>
-    <!-- 헤더 시작 -->
-    <header>
-        <a href="index.html" style="text-decoration: none; color: inherit;">
-            <div class="logo">
-                <img src="https://raw.githubusercontent.com/moody1317/osbasicproject_4/refs/heads/main/logo.png" alt="백일하 로고">
-            </div>
-        </a>
-    </header>
-    
-    <div class="sticky-nav-container">
-    <!-- 네비게이션 메뉴 시작 -->
-    <nav>
-        <ul>
-            <li class="has-submenu" data-submenu="party-submenu">
-                정당
-            </li>
-            <li class="has-submenu" data-submenu="member-submenu">
-                국회의원
-            </li>
-            <li class="has-submenu" data-submenu="activity-submenu">
-                의정 활동
-            </li>
-            <li class="has-submenu" data-submenu="etc-submenu">
-                기타
-            </li>
-        </ul>
-        
-        <!-- 정당 서브메뉴 -->
-        <div class="submenu-wrapper" id="party-submenu">
-            <div class="submenu-container">
-                <a href="rank_party.html" class="submenu-item">명예의 정당</a>
-                <a href="percent_party.html" class="submenu-item">정당 상세 퍼센트</a>
-                <a href="compare_party.html" class="submenu-item">정당 비교하기</a>
-            </div>
-        </div>
-        
-        <!-- 국회의원 서브메뉴 -->
-        <div class="submenu-wrapper" id="member-submenu">
-            <div class="submenu-container">
-                <a href="compare_member.html" class="submenu-item">국회의원 비교하기</a>
-                <a href="percent_member.html" class="submenu-item">국회의원 상세정보</a>
-                <a href="rank_member.html" class="submenu-item">명예의 의원</a>
-            </div>
-        </div>
-        
-        <!-- 의정 활동 서브메뉴 -->
-        <div class="submenu-wrapper" id="activity-submenu">
-            <div class="submenu-container">
-                <a href="petition.html" class="submenu-item">청원 현황</a>
-                <a href="meeting.html" class="submenu-item">본회의 현황</a>
-            </div>
-        </div>
-        
-        <!-- 기타 서브메뉴 -->
-        <div class="submenu-wrapper" id="etc-submenu">
-            <div class="submenu-container">
-                <a href="outpage.html" class="submenu-item">외부 사이트</a>
-                <a href="inquiry.html" class="submenu-item">도움말</a>
-                <a href="announcements.html" class="submenu-item">공지사항</a>
-            </div>
-        </div>
-    </nav>
-    </div>
-    
-    <main class="main">
-        <h1 class="title">상세 퍼센트</h1>
-        
-        <!-- API 연결 상태 표시 -->
-        <div class="api-status-bar" id="apiStatusBar">
-            <div class="api-status-item">
-                <span class="status-indicator" id="apiStatusIndicator"></span>
-                <span class="status-text" id="apiStatusText">API 연결 확인 중...</span>
-            </div>
-            <div class="api-actions">
-                <button class="api-test-btn" id="apiTestBtn">🔍 연결 테스트</button>
-                <button class="api-apply-btn" id="apiApplyBtn" disabled>🚀 서버 적용</button>
-            </div>
-        </div>
-        
-        <!-- 컨트롤 영역 -->
-        <div class="control-wrapper">
-            <div class="reset-wrapper">
-                <button class="reset-button" id="resetButton">🔄 초기화</button>
-            </div>
-            <div class="auto-save-indicator" id="autoSaveIndicator">
-                <span class="save-status" id="saveStatus">💾 자동 저장됨</span>
-                <span class="last-updated" id="lastUpdated"></span>
-            </div>
-        </div>
-        
-        <!-- 백업 및 복원 섹션 -->
-        <div class="backup-section">
-            <div class="backup-controls">
-                <button class="backup-btn" id="exportBtn">📤 설정 내보내기</button>
-                <input type="file" id="importFile" accept=".json" style="display: none;">
-                <button class="backup-btn" id="importBtn">📥 설정 가져오기</button>
-            </div>
-        </div>
-        
-        <!-- 체크박스 그리드 -->
-        <div class="checkbox-grid">
-            <!-- 1행 -->
-            <div class="checkbox-item">
-                <div class="checkbox-header">
-                    <input type="checkbox" id="check1" class="checkbox-input" checked data-item="간사">
-                    <label for="check1" class="checkbox-label">간사</label>
+    <div class="container">
+        <header>
+            <a href="mainpage.html" style="text-decoration: none; color: inherit;">
+                <div class="logo">
+                    <img src="https://raw.githubusercontent.com/moody1317/osbasicproject_4/refs/heads/main/logo.png" alt="백일하 로고">
                 </div>
-                <div class="checkbox-description">초기값: 3%</div>
-            </div>
-            <div class="checkbox-item">
-                <div class="checkbox-header">
-                    <input type="checkbox" id="check2" class="checkbox-input" checked data-item="무효표 및 기권">
-                    <label for="check2" class="checkbox-label">무효표 및 기권</label>
+            </a>
+        </header>
+        
+        <div class="percent-sync-container">
+            <div class="card instructions">
+                <h3>📋 사용 방법</h3>
+                <ol>
+                    <li><strong>API 연결 확인:</strong> 상태 로그에서 API 연결 상태를 확인하세요</li>
+                    <li><strong>가중치 조정:</strong> 아래 가중치 값들을 조정하여 <strong>총합 100%</strong>를 만드세요</li>
+                    <li><strong>동기화 실행:</strong> <strong>"가중치 적용 및 동기화"</strong> 버튼을 클릭하세요</li>
+                    <li><strong>결과 확인:</strong> 다른 탭들(mainpage.html, rank_member.html, rank_party.html)을 열어서 실시간 업데이트를 확인하세요</li>
+                    <li><strong>상태 모니터링:</strong> 상태 로그에서 동기화 과정을 모니터링하세요</li>
+                </ol>
+                <div class="note">
+                    <strong>💡 참고:</strong> API 연결이 안 되면 자동으로 테스트 데이터로 동작합니다
                 </div>
-                <div class="checkbox-description">초기값: 2%</div>
-            </div>
-            <div class="checkbox-item">
-                <div class="checkbox-header">
-                    <input type="checkbox" id="check3" class="checkbox-input" checked data-item="본회의 가결">
-                    <label for="check3" class="checkbox-label">본회의 가결</label>
-                </div>
-                <div class="checkbox-description">초기값: 40%</div>
-            </div>
-            <div class="checkbox-item">
-                <div class="checkbox-header">
-                    <input type="checkbox" id="check4" class="checkbox-input" checked data-item="위원장">
-                    <label for="check4" class="checkbox-label">위원장</label>
-                </div>
-                <div class="checkbox-description">초기값: 5%</div>
             </div>
             
-            <!-- 2행 -->
-            <div class="checkbox-item">
-                <div class="checkbox-header">
-                    <input type="checkbox" id="check5" class="checkbox-input" checked data-item="청원 소개">
-                    <label for="check5" class="checkbox-label">청원 소개</label>
+            <div class="card test-section">
+                <h3>⚖️ 가중치 설정</h3>
+                <div class="weight-grid">
+                    <div class="weight-item">
+                        <label>간사</label>
+                        <input type="number" class="weight-input" data-weight="간사" value="3" min="0" max="100">
+                    </div>
+                    <div class="weight-item">
+                        <label>무효표 및 기권</label>
+                        <input type="number" class="weight-input" data-weight="무효표 및 기권" value="2" min="0" max="100">
+                    </div>
+                    <div class="weight-item">
+                        <label>본회의 가결</label>
+                        <input type="number" class="weight-input" data-weight="본회의 가결" value="40" min="0" max="100">
+                    </div>
+                    <div class="weight-item">
+                        <label>위원장</label>
+                        <input type="number" class="weight-input" data-weight="위원장" value="5" min="0" max="100">
+                    </div>
+                    <div class="weight-item">
+                        <label>청원 소개</label>
+                        <input type="number" class="weight-input" data-weight="청원 소개" value="8" min="0" max="100">
+                    </div>
+                    <div class="weight-item">
+                        <label>청원 결과</label>
+                        <input type="number" class="weight-input" data-weight="청원 결과" value="23" min="0" max="100">
+                    </div>
+                    <div class="weight-item">
+                        <label>출석</label>
+                        <input type="number" class="weight-input" data-weight="출석" value="8" min="0" max="100">
+                    </div>
+                    <div class="weight-item">
+                        <label>투표 결과 일치</label>
+                        <input type="number" class="weight-input" data-weight="투표 결과 일치" value="7" min="0" max="100">
+                    </div>
+                    <div class="weight-item">
+                        <label>투표 결과 불일치</label>
+                        <input type="number" class="weight-input" data-weight="투표 결과 불일치" value="4" min="0" max="100">
+                    </div>
                 </div>
-                <div class="checkbox-description">초기값: 8%</div>
-            </div>
-            <div class="checkbox-item">
-                <div class="checkbox-header">
-                    <input type="checkbox" id="check6" class="checkbox-input" checked data-item="청원 결과">
-                    <label for="check6" class="checkbox-label">청원 결과</label>
+                
+                <div class="total-display success" id="totalDisplay">
+                    총합: <span id="totalValue">100</span>% 
+                    <span id="totalStatus">✅ 100% 달성!</span>
                 </div>
-                <div class="checkbox-description">초기값: 23%</div>
             </div>
-            <div class="checkbox-item">
-                <div class="checkbox-header">
-                    <input type="checkbox" id="check7" class="checkbox-input" checked data-item="출석">
-                    <label for="check7" class="checkbox-label">출석</label>
+            
+            <div class="card test-section">
+                <h3>🚀 동기화 및 테스트</h3>
+                <div class="btn-container">
+                    <button class="btn btn-success" onclick="applyWeightsAndSync()">
+                        🎯 가중치 적용 및 API 동기화
+                    </button>
+                    <button class="btn btn-primary" onclick="checkConnectionStatus()">
+                        🔍 연결 상태 및 API 확인
+                    </button>
+                    <button class="btn btn-warning" onclick="testBroadcast()">
+                        📡 브로드캐스트 테스트
+                    </button>
+                    <button class="btn btn-danger" onclick="resetToOriginal()">
+                        🔄 API 원본 데이터로 리셋
+                    </button>
                 </div>
-                <div class="checkbox-description">초기값: 8%</div>
             </div>
-            <div class="checkbox-item">
-                <div class="checkbox-header">
-                    <input type="checkbox" id="check8" class="checkbox-input" checked data-item="투표 결과 일치">
-                    <label for="check8" class="checkbox-label">투표 결과 일치</label>
-                </div>
-                <div class="checkbox-description">초기값: 7%</div>
-            </div>
+            
+            <div class="card test-section">
+                <h3>📊 상태 모니터링</h3>
+                <div class="status-display" id="statusLog">📱 가중치 동기화 테스트 도구 준비 중...
 
-            <!-- 3행 -->
-            <div class="checkbox-item">
-                <div class="checkbox-header">
-                    <input type="checkbox" id="check9" class="checkbox-input" checked data-item="투표 결과 불일치">
-                    <label for="check9" class="checkbox-label">투표 결과 불일치</label>
-                </div>
-                <div class="checkbox-description">초기값: 4%</div>
-            </div>
-        </div>
-        
-        <!-- 퍼센트 테이블 -->
-        <div class="percent-grid">
-            <div class="percent-header">
-                <div class="percent-header-item">항목</div>
-                <div class="percent-header-item">비율</div>
-                <div class="percent-header-item">항목</div>
-                <div class="percent-header-item">비율</div>
-            </div>
-            <div class="percent-row">
-                <div class="percent-item">
-                    <span class="percent-label">간사</span>
-                    <input type="text" class="percent-input" value="3%" placeholder="비율 입력" data-item="간사">
-                </div>
-                <div class="percent-item">
-                    <span class="percent-label">무효표 및 기권</span>
-                    <input type="text" class="percent-input" value="2%" placeholder="비율 입력" data-item="무효표 및 기권">
-                </div>
-            </div>
-            <div class="percent-row">
-                <div class="percent-item">
-                    <span class="percent-label">본회의 가결</span>
-                    <input type="text" class="percent-input" value="40%" placeholder="비율 입력" data-item="본회의 가결">
-                </div>
-                <div class="percent-item">
-                    <span class="percent-label">위원장</span>
-                    <input type="text" class="percent-input" value="5%" placeholder="비율 입력" data-item="위원장">
-                </div>
-            </div>
-            <div class="percent-row">
-                <div class="percent-item">
-                    <span class="percent-label">청원 소개</span>
-                    <input type="text" class="percent-input" value="8%" placeholder="비율 입력" data-item="청원 소개">
-                </div>
-                <div class="percent-item">
-                    <span class="percent-label">청원 결과</span>
-                    <input type="text" class="percent-input" value="23%" placeholder="비율 입력" data-item="청원 결과">
-                </div>
-            </div>
-            <div class="percent-row">
-                <div class="percent-item">
-                    <span class="percent-label">출석</span>
-                    <input type="text" class="percent-input" value="8%" placeholder="비율 입력" data-item="출석">
-                </div>
-                <div class="percent-item">
-                    <span class="percent-label">투표 결과 일치</span>
-                    <input type="text" class="percent-input" value="7%" placeholder="비율 입력" data-item="투표 결과 일치">
-                </div>
-            </div>
-            <div class="percent-row">
-                <div class="percent-item">
-                    <span class="percent-label">투표 결과 불일치</span>
-                    <input type="text" class="percent-input" value="4%" placeholder="비율 입력" data-item="투표 결과 불일치">
-                </div>
-                <div class="percent-item">
-                    <span class="percent-label"></span>
-                </div>
-            </div>
-        </div>
-    </main>
-    
-    <!-- 챗봇 아이콘 -->
-    <div class="robot-icon">
-        <img src="https://raw.githubusercontent.com/moody1317/osbasicproject_4/946d8f24f9c780853862670da370ad174c3def6c/chat.png" alt="챗봇 아이콘">
-    </div>
-    
-    <!-- 챗봇 모달 -->
-    <div class="chatbot-modal" id="chatbotModal">
-        <div class="chatbot-container">
-            <div class="chatbot-header">
-                <div class="date" id="chatbotDate"></div>
-                <button class="close-button">&times;</button>
-            </div>
-            <div class="chatbot-messages" id="chatbotMessages">
-                <!-- 메시지가 여기에 추가됩니다 -->
-            </div>
-            
-            <div class="suggestion-buttons">
-                <button class="suggestion-btn">퍼센트 설정 도움말</button>
-                <button class="suggestion-btn">가중치 계산 방법</button>
-                <button class="suggestion-btn">설정 저장/불러오기</button>
-                <button class="suggestion-btn">초기값 안내</button>
-            </div>
-            
-            <div class="chatbot-input">
-                <input type="text" id="messageInput" placeholder="퍼센트 설정에 대해 궁금한 점을 입력해주세요">
-                <button class="send-button">
-                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <path d="M22 2L11 13" stroke="#AAAAAA" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                        <path d="M22 2L15 22L11 13L2 9L22 2Z" stroke="#AAAAAA" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                    </svg>
-                </button>
+🔗 다음 페이지들과 연동됩니다:
+- mainpage.html (메인 페이지)
+- rank_member.html (의원 랭킹)
+- rank_party.html (정당 랭킹)
+- percent.html (가중치 설정)
+
+🌐 API 서버: https://baekilha.onrender.com
+📊 API 엔드포인트:
+- /performance/api/party_performance/ (정당 성과)
+- /performance/api/performance/ (의원 성과)  
+- /legislation/bill-count/ (법안 제안)
+
+💡 팁: 각 페이지를 새 탭으로 열어두고 테스트하세요!</div>
             </div>
         </div>
     </div>
-    
-    <!-- 외부 스크립트 연결 -->
-    <script src="global_sync.js"></script>
-    <script src="scripts.js"></script>
-    <script src="percent.js"></script>
 
-    <footer style="margin-top: 40px; padding: 20px; font-size: 12px; color: gray; text-align: center; border-top: 1px solid #ddd; background-color: #f9f9f9;">
-        본 웹사이트는 충북대학교의 오픈소스 기초 프로젝트 과제를 위해 제작된 비상업적 프로젝트입니다.<br>
-        사용된 의원 정보 및 이미지는 열린국회정보 API를 통해 수집되었으며, 실제 정당 및 국회의원과 무관한 가상 시각화입니다.
-    </footer>
+    <script>
+        // 가중치 합계 계산 및 표시 업데이트
+        function updateTotal() {
+            const inputs = document.querySelectorAll('.weight-input');
+            let total = 0;
+            
+            inputs.forEach(input => {
+                total += parseInt(input.value) || 0;
+            });
+            
+            const totalValue = document.getElementById('totalValue');
+            const totalStatus = document.getElementById('totalStatus');
+            const totalDisplay = document.getElementById('totalDisplay');
+            
+            totalValue.textContent = total;
+            
+            if (total === 100) {
+                totalStatus.textContent = '✅ 100% 달성!';
+                totalStatus.style.color = '#48bb78';
+                totalDisplay.className = 'total-display success';
+            } else if (total < 100) {
+                totalStatus.textContent = `⚠️ ${100 - total}% 부족`;
+                totalStatus.style.color = '#ed8936';
+                totalDisplay.className = 'total-display error';
+            } else {
+                totalStatus.textContent = `❌ ${total - 100}% 초과`;
+                totalStatus.style.color = '#f56565';
+                totalDisplay.className = 'total-display error';
+            }
+        }
 
+        // 이벤트 리스너 추가
+        document.addEventListener('DOMContentLoaded', function() {
+            const inputs = document.querySelectorAll('.weight-input');
+            inputs.forEach(input => {
+                input.addEventListener('input', updateTotal);
+            });
+            
+            // 초기 합계 계산
+            updateTotal();
+        });
+
+        // 기존 JavaScript 함수들 (기능 유지)
+        function applyWeightsAndSync() {
+            const statusLog = document.getElementById('statusLog');
+            statusLog.textContent += '\n🎯 가중치 적용 및 동기화 시작...';
+            
+            // 실제 구현은 기존 JavaScript 파일에 의존
+            if (typeof window.applyWeightsAndSync === 'function') {
+                window.applyWeightsAndSync();
+            }
+        }
+
+        function checkConnectionStatus() {
+            const statusLog = document.getElementById('statusLog');
+            statusLog.textContent += '\n🔍 연결 상태 확인 중...';
+            
+            if (typeof window.checkConnectionStatus === 'function') {
+                window.checkConnectionStatus();
+            }
+        }
+
+        function testBroadcast() {
+            const statusLog = document.getElementById('statusLog');
+            statusLog.textContent += '\n📡 브로드캐스트 테스트 실행...';
+            
+            if (typeof window.testBroadcast === 'function') {
+                window.testBroadcast();
+            }
+        }
+
+        function resetToOriginal() {
+            const statusLog = document.getElementById('statusLog');
+            statusLog.textContent += '\n🔄 원본 데이터로 리셋 중...';
+            
+            if (typeof window.resetToOriginal === 'function') {
+                window.resetToOriginal();
+            }
+        }
+
+        // 부드러운 호버 효과를 위한 추가 인터랙션
+        document.querySelectorAll('.weight-item').forEach(item => {
+            item.addEventListener('mouseenter', function() {
+                this.style.transform = 'translateY(-2px) scale(1.02)';
+            });
+            
+            item.addEventListener('mouseleave', function() {
+                this.style.transform = 'translateY(0) scale(1)';
+            });
+        });
+    </script>
+
+    <script src="global_sync.js" type="text/javascript"></script>
+    <script src="percent.js" type="text/javascript"></script>
 </body>
 </html>
