@@ -520,6 +520,25 @@ function initializePercentSync() {
             addLog('⚠️ GlobalSyncManager 미연결 - Fallback 모드 사용', 'warning');
         }
     }, 1000);
+
+    // [패치] 외부 동기화/초기화 이후에도 localStorage 값이 최종 반영되도록 1초 후 한 번 더 복원
+    setTimeout(() => {
+        const savedWeights = localStorage.getItem('user_weights');
+        if (savedWeights) {
+            try {
+                const weights = JSON.parse(savedWeights);
+                document.querySelectorAll('.weight-input').forEach(input => {
+                    if (weights.hasOwnProperty(input.dataset.weight)) {
+                        input.value = weights[input.dataset.weight];
+                    }
+                });
+                console.log('[percent.js] [PATCH] localStorage에서 가중치 최종 복원 완료:', weights);
+            } catch (e) {
+                // 무시
+            }
+        }
+        updateTotal();
+    }, 1000);
 }
 
 // 페이지 로드 시 초기화
