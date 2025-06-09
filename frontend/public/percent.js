@@ -474,31 +474,33 @@ function resetToOriginal() {
     }
 }
 
+// localStorage에서 가중치 복원 함수
+function restoreWeightsFromLocalStorage() {
+    const savedWeights = localStorage.getItem('user_weights');
+    if (savedWeights) {
+        try {
+            const weights = JSON.parse(savedWeights);
+            document.querySelectorAll('.weight-input').forEach(input => {
+                if (weights.hasOwnProperty(input.dataset.weight)) {
+                    input.value = weights[input.dataset.weight];
+                }
+            });
+            console.log('[percent.js] [RESTORE] localStorage에서 가중치 복원 완료:', weights);
+        } catch (e) {
+            // 무시
+        }
+    }
+    updateTotal();
+}
+
 // 초기화 함수
 function initializePercentSync() {
-    // 가중치 입력 이벤트 리스너
     document.querySelectorAll('.weight-input').forEach(input => {
         input.addEventListener('input', updateTotal);
     });
 
     // input이 완전히 렌더링된 후 복원 (500ms 지연)
-    setTimeout(() => {
-        const savedWeights = localStorage.getItem('user_weights');
-        if (savedWeights) {
-            try {
-                const weights = JSON.parse(savedWeights);
-                document.querySelectorAll('.weight-input').forEach(input => {
-                    if (weights.hasOwnProperty(input.dataset.weight)) {
-                        input.value = weights[input.dataset.weight];
-                    }
-                });
-                console.log('[percent.js] localStorage에서 가중치 복원 완료:', weights);
-            } catch (e) {
-                // 무시
-            }
-        }
-        updateTotal();
-    }, 500);
+    setTimeout(restoreWeightsFromLocalStorage, 500);
 
     // 복원 후 반드시 updateTotal() 호출 (UI/상태 동기화)
     updateTotal();
@@ -522,24 +524,8 @@ function initializePercentSync() {
     }, 1000);
 
     // [패치] 외부 동기화/초기화 이후에도 localStorage 값이 최종 반영되도록 1초 후 한 번 더 복원
-    setTimeout(() => {
-        const savedWeights = localStorage.getItem('user_weights');
-        if (savedWeights) {
-            try {
-                const weights = JSON.parse(savedWeights);
-                document.querySelectorAll('.weight-input').forEach(input => {
-                    if (weights.hasOwnProperty(input.dataset.weight)) {
-                        input.value = weights[input.dataset.weight];
-                    }
-                });
-                console.log('[percent.js] [PATCH] localStorage에서 가중치 최종 복원 완료:', weights);
-            } catch (e) {
-                // 무시
-            }
-        }
-        updateTotal();
-    }, 1000);
+    setTimeout(restoreWeightsFromLocalStorage, 1000);
 }
 
-// 페이지 로드 시 초기화
 document.addEventListener('DOMContentLoaded', initializePercentSync);
+window.addEventListener('load', restoreWeightsFromLocalStorage);
