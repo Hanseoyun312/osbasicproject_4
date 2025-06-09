@@ -1,3 +1,18 @@
+let userWeights = getSavedWeights();
+
+console.log('[가중치 복원] compare_member:', userWeights);
+
+//복원 함수
+function getSavedWeights() {
+    try {
+        const data = localStorage.getItem('userWeights');
+        if (!data) return null;
+        return JSON.parse(data);
+    } catch (e) {
+        return null;
+    }
+}
+
 document.addEventListener('DOMContentLoaded', function() {
     console.log('🚀 국회의원 비교 페이지 로드 시작');
 
