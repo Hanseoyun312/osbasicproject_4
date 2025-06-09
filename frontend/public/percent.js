@@ -20,6 +20,13 @@ function updateTotal() {
         totalDisplay.className = 'total-display invalid';
         totalStatus.textContent = `⚠️ ${total > 100 ? '초과' : '부족'} (${(100 - total).toFixed(1)}% ${total > 100 ? '감소' : '추가'} 필요)`;
     }
+
+    // 가중치 입력값을 localStorage에 저장
+    const weights = {};
+    inputs.forEach(input => {
+        weights[input.dataset.weight] = parseFloat(input.value) || 0;
+    });
+    localStorage.setItem('user_weights', JSON.stringify(weights));
 }
 
 // 로그 추가 함수
@@ -473,7 +480,22 @@ function initializePercentSync() {
     document.querySelectorAll('.weight-input').forEach(input => {
         input.addEventListener('input', updateTotal);
     });
-    
+
+    // localStorage에 저장된 가중치가 있으면 복원
+    const savedWeights = localStorage.getItem('user_weights');
+    if (savedWeights) {
+        try {
+            const weights = JSON.parse(savedWeights);
+            document.querySelectorAll('.weight-input').forEach(input => {
+                if (weights.hasOwnProperty(input.dataset.weight)) {
+                    input.value = weights[input.dataset.weight];
+                }
+            });
+        } catch (e) {
+            // 무시
+        }
+    }
+
     // 초기 총합 계산
     updateTotal();
     
