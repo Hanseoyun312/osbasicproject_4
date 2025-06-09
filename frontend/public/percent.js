@@ -20,14 +20,6 @@ function updateTotal() {
         totalDisplay.className = 'total-display invalid';
         totalStatus.textContent = `⚠️ ${total > 100 ? '초과' : '부족'} (${(100 - total).toFixed(1)}% ${total > 100 ? '감소' : '추가'} 필요)`;
     }
-
-    // 가중치 입력값을 localStorage에 저장
-    const weights = {};
-    inputs.forEach(input => {
-        weights[input.dataset.weight] = parseFloat(input.value) || 0;
-    });
-    
-    localStorage.setItem('user_weights', JSON.stringify(weights));
 }
 
 // 로그 추가 함수
@@ -475,49 +467,14 @@ function resetToOriginal() {
     }
 }
 
-// localStorage에서 가중치 복원 함수
-function restoreWeightsFromLocalStorage() {
-    const savedWeights = localStorage.getItem('user_weights');
-    if (savedWeights) {
-        try {
-            const weights = JSON.parse(savedWeights);
-            document.querySelectorAll('.weight-input').forEach(input => {
-                if (weights.hasOwnProperty(input.dataset.weight)) {
-                    input.value = weights[input.dataset.weight];
-                }
-            });
-            updateTotal();
-            console.log('[restoreWeightsFromLocalStorage] 복원 완료:', weights);
-        } catch (e) {
-            console.error('[restoreWeightsFromLocalStorage] 복원 에러', e);
-        }
-    } else {
-        console.log('[restoreWeightsFromLocalStorage] 저장된 값 없음');
-    }
-}
-
-
-// 1) DOMContentLoaded - input이 거의 다 렌더됨
-document.addEventListener('DOMContentLoaded', restoreWeightsFromLocalStorage);
-// 2) window.onload - 이미지 등 다 로드 완료 후 한 번 더
-window.addEventListener('load', restoreWeightsFromLocalStorage);
-// 3) 500ms, 1000ms 지연 복원도 추가
-setTimeout(restoreWeightsFromLocalStorage, 500);
-setTimeout(restoreWeightsFromLocalStorage, 1000);
-// 다른 탭에서 값이 바뀌면 자동 복원?
-window.addEventListener('storage', restoreWeightsFromLocalStorage);
-
 // 초기화 함수
 function initializePercentSync() {
+    // 가중치 입력 이벤트 리스너
     document.querySelectorAll('.weight-input').forEach(input => {
         input.addEventListener('input', updateTotal);
     });
-
-    // input이 완전히 렌더링된 후 복원 (500ms 지연)
-   // setTimeout(restoreWeightsFromLocalStorage, 500);
-   restoreWeightsFromLocalStorage();
-
-    // 복원 후 반드시 updateTotal() 호출 (UI/상태 동기화)
+    
+    // 초기 총합 계산
     updateTotal();
     
     // 페이지 로드 완료 메시지
@@ -537,10 +494,7 @@ function initializePercentSync() {
             addLog('⚠️ GlobalSyncManager 미연결 - Fallback 모드 사용', 'warning');
         }
     }, 1000);
-
-    // [패치] 외부 동기화/초기화 이후에도 localStorage 값이 최종 반영되도록 1초 후 한 번 더 복원
-    // setTimeout(restoreWeightsFromLocalStorage, 1000);
 }
 
+// 페이지 로드 시 초기화
 document.addEventListener('DOMContentLoaded', initializePercentSync);
-// window.addEventListener('load', restoreWeightsFromLocalStorage);
