@@ -1,6 +1,6 @@
 /**
- * percent.js (v3.1.0) - 클라이언트 사이드 가중치 시스템 + 서버 오류 처리 강화
- * 개선사항: 서버 저장 시도 + 실패 시 클라이언트 폴백 + 강화된 오류 처리
+ * percent.js (v4.1.0) - 완전 클라이언트 사이드 가중치 시스템 (초기화 개선)
+ * 개선사항: 완전한 초기화 기능, 강제 리셋, 원본 데이터 복원 보장
  */
 
 document.addEventListener('DOMContentLoaded', function() {
@@ -36,16 +36,12 @@ document.addEventListener('DOMContentLoaded', function() {
 
         // 타이밍 설정
         AUTO_SAVE_DELAY: 1000,
-        AUTO_APPLY_DELAY: 500,    // 즉시 적용
-        STORAGE_KEY: 'client_weights_v3',
-        BACKUP_KEY: 'weight_backup_history_v3',
-        
-        // 🔧 서버 설정
-        SERVER_RETRY_COUNT: 3,
-        SERVER_RETRY_DELAY: [2000, 4000, 6000] // 2초, 4초, 6초
+        AUTO_APPLY_DELAY: 500,
+        STORAGE_KEY: 'client_weights_v4',
+        BACKUP_KEY: 'weight_backup_history_v4'
     };
 
-    // === 🔧 애플리케이션 상태 관리 ===
+    // === 🔧 애플리케이션 상태 관리 (클라이언트 전용) ===
     let appState = {
         weights: {},
         isLoading: false,
@@ -61,12 +57,7 @@ document.addEventListener('DOMContentLoaded', function() {
         connectedPages: new Set(),
         realTimeUpdatesEnabled: true,
         lastCalculatedWeights: null,
-        
-        // 🚨 서버 연결 상태
-        serverMode: 'hybrid', // 'server', 'client', 'hybrid'
-        lastServerAttempt: null,
-        serverErrorCount: 0,
-        isRetryingServer: false
+        userId: generateUserId() // 각 사용자별 고유 ID
     };
 
     // DOM 요소들
@@ -82,10 +73,21 @@ document.addEventListener('DOMContentLoaded', function() {
         importFile: document.getElementById('importFile')
     };
 
+    // === 🆔 사용자별 고유 ID 생성 ===
+    function generateUserId() {
+        let userId = localStorage.getItem('client_user_id');
+        if (!userId) {
+            userId = 'user_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+            localStorage.setItem('client_user_id', userId);
+        }
+        return userId;
+    }
+
     // === 🚀 초기화 함수 ===
     async function initializeApp() {
         try {
-            console.log('[Percent] 🚀 클라이언트 사이드 가중치 시스템 초기화... (v3.1.0)');
+            console.log('[Percent] 🚀 클라이언트 전용 가중치 시스템 초기화... (v4.1.0)');
+            console.log('[Percent] 👤 사용자 ID:', appState.userId);
             
             showLoadingState(true);
             
@@ -107,12 +109,9 @@ document.addEventListener('DOMContentLoaded', function() {
             // 랭킹 페이지 연결 확인
             checkConnectedPages();
             
-            // 서버 상태 확인
-            await checkServerStatus();
-            
             showLoadingState(false);
             
-            console.log('[Percent] ✅ 클라이언트 사이드 가중치 시스템 초기화 완료');
+            console.log('[Percent] ✅ 클라이언트 전용 가중치 시스템 초기화 완료');
             showNotification('가중치 설정이 준비되었습니다! 변경사항이 즉시 랭킹에 반영됩니다.', 'success');
             
         } catch (error) {
@@ -127,62 +126,117 @@ document.addEventListener('DOMContentLoaded', function() {
         console.log('[Percent] 🔗 실시간 업데이트 시스템 초기화...');
         
         // BroadcastChannel 설정 (페이지간 실시간 통신)
-        if (typeof BroadcastChannel !== 'undefined') {
-            try {
-                window.weightUpdateChannel = new BroadcastChannel('client_weight_updates_v3');
-                
-                // 다른 페이지에서 연결 확인 요청 수신
-                window.weightUpdateChannel.addEventListener('message', function(event) {
-                    if (event.data.type === 'connection_check') {
-                        // 응답 전송
-                        window.weightUpdateChannel.postMessage({
-                            type: 'connection_response',
-                            source: 'percent_page',
-                            timestamp: new Date().toISOString(),
-                            status: 'connected',
-                            serverMode: appState.serverMode
-                        });
-                        
-                        appState.connectedPages.add(event.data.source);
-                        updateConnectedPagesDisplay();
-                    }
-                });
-                
-                console.log('[Percent] ✅ BroadcastChannel 초기화 완료');
-            } catch (e) {
-                console.warn('[Percent] ⚠️ BroadcastChannel 초기화 실패:', e);
-            }
-        }
+        createBroadcastChannel();
         
         // 페이지 연결 상태 주기적 확인
         setInterval(checkConnectedPages, 10000); // 10초마다
     }
 
-    // === 🔍 서버 상태 확인 ===
-    async function checkServerStatus() {
+    // === 📡 BroadcastChannel 생성 및 관리 ===
+    function createBroadcastChannel() {
+        if (typeof BroadcastChannel === 'undefined') {
+            console.warn('[Percent] ⚠️ BroadcastChannel을 지원하지 않는 브라우저입니다');
+            return false;
+        }
+
         try {
-            if (window.APIService && window.APIService.getEnvironmentInfo) {
-                await window.APIService.getEnvironmentInfo();
-                appState.serverMode = 'hybrid';
-                console.log('[Percent] ✅ 서버 연결 상태: 정상');
-                return true;
+            // 기존 채널이 있으면 정리
+            if (window.weightUpdateChannel) {
+                try {
+                    window.weightUpdateChannel.close();
+                } catch (e) {
+                    // 이미 닫혔을 수 있음
+                }
             }
-        } catch (error) {
-            console.warn('[Percent] ⚠️ 서버 연결 실패, 클라이언트 모드 사용:', error);
-            appState.serverMode = 'client';
+
+            // 새 채널 생성
+            window.weightUpdateChannel = new BroadcastChannel('client_weight_updates_v4');
+            
+            // 다른 페이지에서 연결 확인 요청 수신
+            window.weightUpdateChannel.addEventListener('message', function(event) {
+                try {
+                    if (event.data.type === 'connection_check') {
+                        // 응답 전송 (채널 상태 확인 후)
+                        safeBroadcast({
+                            type: 'connection_response',
+                            source: 'percent_page',
+                            timestamp: new Date().toISOString(),
+                            status: 'connected',
+                            mode: 'client_only',
+                            userId: appState.userId
+                        });
+                        
+                        appState.connectedPages.add(event.data.source);
+                        updateConnectedPagesDisplay();
+                    }
+                } catch (error) {
+                    console.warn('[Percent] 메시지 처리 실패:', error);
+                }
+            });
+
+            // 채널 오류 처리
+            window.weightUpdateChannel.addEventListener('error', function(error) {
+                console.warn('[Percent] BroadcastChannel 오류:', error);
+                // 채널 재생성 시도
+                setTimeout(createBroadcastChannel, 1000);
+            });
+            
+            console.log('[Percent] ✅ BroadcastChannel 초기화 완료');
+            return true;
+            
+        } catch (e) {
+            console.warn('[Percent] ⚠️ BroadcastChannel 초기화 실패:', e);
+            window.weightUpdateChannel = null;
             return false;
         }
     }
 
-    // === 📡 연결된 페이지 확인 ===
+    // === 📡 안전한 브로드캐스트 함수 ===
+    function safeBroadcast(data) {
+        try {
+            if (!window.weightUpdateChannel) {
+                // 채널이 없으면 재생성 시도
+                if (!createBroadcastChannel()) {
+                    return false;
+                }
+            }
+
+            // 채널 상태 확인 (readyState는 없지만, 예외 발생으로 확인)
+            window.weightUpdateChannel.postMessage(data);
+            return true;
+            
+        } catch (error) {
+            console.warn('[Percent] 브로드캐스트 실패, 채널 재생성 시도:', error);
+            
+            // 채널 재생성 시도
+            if (createBroadcastChannel()) {
+                try {
+                    window.weightUpdateChannel.postMessage(data);
+                    return true;
+                } catch (retryError) {
+                    console.warn('[Percent] 재시도 후에도 브로드캐스트 실패:', retryError);
+                }
+            }
+            
+            return false;
+        }
+    }
+
+    // === 📡 연결된 페이지 확인 (안전한 버전) ===
     function checkConnectedPages() {
-        if (window.weightUpdateChannel) {
-            // 연결 확인 요청 전송
-            window.weightUpdateChannel.postMessage({
+        try {
+            const success = safeBroadcast({
                 type: 'connection_check',
                 source: 'percent_page',
-                timestamp: new Date().toISOString()
+                timestamp: new Date().toISOString(),
+                userId: appState.userId
             });
+            
+            if (!success) {
+                console.warn('[Percent] 연결 확인 브로드캐스트 실패');
+            }
+        } catch (error) {
+            console.warn('[Percent] 연결 확인 중 오류:', error);
         }
     }
 
@@ -195,9 +249,9 @@ document.addEventListener('DOMContentLoaded', function() {
                 statusElement.id = 'connected-pages-status';
                 statusElement.style.cssText = `
                     margin-top: 15px; padding: 12px 16px; 
-                    background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
+                    background: linear-gradient(135deg, #10b981 0%, #059669 100%);
                     border-radius: 8px; font-size: 13px; color: white;
-                    box-shadow: 0 2px 8px rgba(59, 130, 246, 0.2);
+                    box-shadow: 0 2px 8px rgba(16, 185, 129, 0.2);
                 `;
                 
                 // 체크박스 그리드 다음에 추가
@@ -208,13 +262,11 @@ document.addEventListener('DOMContentLoaded', function() {
             }
             
             const connectedCount = appState.connectedPages.size;
-            const serverStatus = appState.serverMode === 'hybrid' ? '🌐 서버 연결됨' : 
-                               appState.serverMode === 'client' ? '💻 클라이언트 모드' : '🔄 확인 중';
             
             statusElement.innerHTML = `
                 <div style="display: flex; justify-content: space-between; align-items: center;">
                     <span>🔗 연결된 랭킹 페이지: <strong>${connectedCount}개</strong></span>
-                    <span style="color: #fbbf24;">${serverStatus}</span>
+                    <span style="color: #fbbf24;">💻 클라이언트 전용 모드</span>
                 </div>
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 4px;">
                     <span style="font-size: 11px; opacity: 0.9;">
@@ -223,10 +275,9 @@ document.addEventListener('DOMContentLoaded', function() {
                             '⚠ 랭킹 페이지를 열어주세요'
                         }
                     </span>
-                    ${appState.serverMode === 'client' ? 
-                        '<button onclick="retryServerConnection()" style="font-size: 10px; padding: 2px 8px; background: rgba(255,255,255,0.2); border: none; border-radius: 4px; color: white; cursor: pointer;">서버 재연결</button>' : 
-                        ''
-                    }
+                    <span style="font-size: 10px; opacity: 0.8;">
+                        ID: ${appState.userId.substr(-8)}
+                    </span>
                 </div>
             `;
             
@@ -235,10 +286,10 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
 
-    // === 🎯 핵심: 강화된 가중치 적용 (서버 저장 시도 + 클라이언트 폴백) ===
+    // === 🎯 핵심: 클라이언트 전용 가중치 적용 ===
     async function applyWeightsToRanking() {
         try {
-            console.log('[Percent] 🎯 강화된 가중치 적용 시작...');
+            console.log('[Percent] 🎯 클라이언트 전용 가중치 적용 시작...');
             
             appState.isApplying = true;
             updateSaveStatus('saving', '🔄 가중치 적용 중...');
@@ -264,26 +315,20 @@ document.addEventListener('DOMContentLoaded', function() {
 
             console.log('[Percent] 📤 적용할 가중치:', activeWeights);
 
-            // 🚀 1단계: 서버 저장 시도 (hybrid 모드일 때만)
-            let serverSuccess = false;
-            if (appState.serverMode === 'hybrid') {
-                serverSuccess = await attemptServerSave(activeWeights);
-            }
-
-            // 🎯 2단계: 클라이언트 저장 (항상 실행)
+            // 🎯 클라이언트 저장
             const weightData = {
                 weights: activeWeights,
                 timestamp: new Date().toISOString(),
                 totalWeight: totalWeight,
-                version: '3.1.0',
-                serverSaved: serverSuccess,
-                mode: serverSuccess ? 'hybrid' : 'client'
+                version: '4.1.0',
+                mode: 'client_only',
+                userId: appState.userId
             };
             
             localStorage.setItem('current_weights', JSON.stringify(weightData));
             
-            // 🚀 3단계: 실시간 랭킹 업데이트 알림 전송
-            await notifyRankingUpdate(activeWeights, totalWeight, serverSuccess);
+            // 🚀 실시간 랭킹 업데이트 알림 전송
+            await notifyRankingUpdate(activeWeights, totalWeight);
 
             // 상태 업데이트
             appState.lastApplied = new Date();
@@ -291,21 +336,13 @@ document.addEventListener('DOMContentLoaded', function() {
             appState.lastCalculatedWeights = { ...activeWeights };
             
             // 성공 메시지
-            const statusMessage = serverSuccess ? 
-                '✅ 서버 저장 + 순위 업데이트 완료!' : 
-                '✅ 클라이언트 저장 + 순위 업데이트 완료!';
-            
-            updateSaveStatus('saved', statusMessage);
+            updateSaveStatus('saved', '✅ 클라이언트 저장 + 순위 업데이트 완료!');
             updateLastAppliedDisplay();
             
-            console.log('[Percent] ✅ 강화된 가중치 적용 완료');
+            console.log('[Percent] ✅ 클라이언트 전용 가중치 적용 완료');
             
             // 🎉 성공 알림
-            const notificationMessage = serverSuccess ? 
-                '가중치가 서버에 저장되고 순위가 업데이트되었습니다! 🎉' :
-                '가중치가 로컬에 저장되고 순위가 업데이트되었습니다! 💻';
-            
-            showNotification(notificationMessage, 'success', 4000);
+            showNotification('가중치가 클라이언트에 저장되고 순위가 업데이트되었습니다! 💻', 'success', 4000);
             
             return true;
 
@@ -320,226 +357,8 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
 
-    // === 🔧 서버 저장 시도 (재시도 포함) ===
-    async function attemptServerSave(weights) {
-        const maxRetries = WEIGHT_CONFIG.SERVER_RETRY_COUNT;
-        let lastError = null;
-        
-        for (let attempt = 1; attempt <= maxRetries; attempt++) {
-            try {
-                console.log(`[Percent] 🔄 서버 저장 시도 ${attempt}/${maxRetries}...`);
-                
-                if (attempt === 1) {
-                    updateSaveStatus('saving', '🌐 서버에 저장 중...');
-                } else {
-                    updateSaveStatus('saving', `🔄 서버 재시도 ${attempt}/${maxRetries}...`);
-                }
-                
-                // APIService를 통한 서버 저장
-                if (window.APIService && window.APIService.updateWeights) {
-                    const response = await window.APIService.updateWeights(weights);
-                    console.log(`[Percent] ✅ 서버 저장 성공 (시도 ${attempt}):`, response);
-                    
-                    appState.serverErrorCount = 0;
-                    appState.lastServerAttempt = new Date();
-                    
-                    return true;
-                }
-                
-                throw new Error('APIService가 사용할 수 없습니다');
-                
-            } catch (error) {
-                lastError = error;
-                console.error(`[Percent] ❌ 서버 저장 실패 (시도 ${attempt}):`, error);
-                
-                appState.serverErrorCount++;
-                
-                // 500 에러 특별 처리
-                if (error.message && error.message.includes('500')) {
-                    console.warn(`[Percent] 🚨 서버 내부 오류 감지 (시도 ${attempt}/${maxRetries})`);
-                    
-                    if (attempt < maxRetries) {
-                        const waitTime = WEIGHT_CONFIG.SERVER_RETRY_DELAY[attempt - 1];
-                        showNotification(`서버 오류로 ${waitTime/1000}초 후 재시도합니다... (${attempt}/${maxRetries})`, 'warning', waitTime);
-                        await new Promise(resolve => setTimeout(resolve, waitTime));
-                        continue;
-                    }
-                }
-                
-                // 다른 에러의 경우 즉시 재시도
-                if (attempt < maxRetries) {
-                    const waitTime = 1000; // 1초 대기
-                    console.log(`[Percent] ⏳ ${waitTime/1000}초 후 재시도...`);
-                    await new Promise(resolve => setTimeout(resolve, waitTime));
-                }
-            }
-        }
-        
-        // 모든 재시도 실패
-        console.error(`[Percent] ❌ ${maxRetries}번의 서버 저장 시도 모두 실패:`, lastError);
-        
-        // 클라이언트 모드로 전환
-        appState.serverMode = 'client';
-        updateConnectedPagesDisplay();
-        
-        // 서버 오류 알림 표시
-        showServerErrorNotification(lastError);
-        
-        return false;
-    }
-
-    // === 🚨 서버 오류 알림 표시 ===
-    function showServerErrorNotification(serverError) {
-        try {
-            // 기존 서버 오류 알림 제거
-            const existing = document.querySelector('.server-error-notification');
-            if (existing) existing.remove();
-            
-            const notification = document.createElement('div');
-            notification.className = 'server-error-notification';
-            notification.style.cssText = `
-                position: fixed; top: 20px; left: 50%; transform: translateX(-50%);
-                padding: 20px 30px; border-radius: 12px; z-index: 10002;
-                max-width: 600px; box-shadow: 0 8px 25px rgba(0,0,0,0.2);
-                font-family: 'Blinker', sans-serif; line-height: 1.5;
-                background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
-                color: white; text-align: center; font-size: 14px;
-                border: 2px solid #fbbf24; backdrop-filter: blur(8px);
-            `;
-            
-            notification.innerHTML = `
-                <div style="display: flex; flex-direction: column; gap: 12px;">
-                    <div style="display: flex; align-items: center; justify-content: center; gap: 10px;">
-                        <span style="font-size: 24px;">⚠️</span>
-                        <strong style="font-size: 16px;">서버 연결 문제 감지</strong>
-                        <span style="font-size: 24px;">🔧</span>
-                    </div>
-                    
-                    <div style="font-size: 13px; opacity: 0.95;">
-                        서버에 일시적인 문제가 발생했지만, <strong>가중치는 로컬에 저장되어 정상 작동</strong>합니다.<br>
-                        모든 페이지에서 새로운 가중치로 점수가 계산됩니다.
-                    </div>
-                    
-                    <div style="display: flex; gap: 10px; justify-content: center; margin-top: 8px;">
-                        <button onclick="this.parentElement.parentElement.parentElement.remove()" 
-                                style="padding: 8px 16px; background: rgba(255,255,255,0.2); border: none; 
-                                       border-radius: 6px; color: white; cursor: pointer; font-size: 12px;">
-                            확인
-                        </button>
-                        <button onclick="retryServerConnection()" 
-                                style="padding: 8px 16px; background: rgba(255,255,255,0.3); border: none; 
-                                       border-radius: 6px; color: white; cursor: pointer; font-size: 12px;">
-                            서버 재연결 시도
-                        </button>
-                    </div>
-                </div>
-            `;
-            
-            document.body.appendChild(notification);
-            
-            // 15초 후 자동 숨김
-            setTimeout(() => {
-                if (notification.parentNode) {
-                    notification.style.opacity = '0';
-                    notification.style.transform = 'translateX(-50%) translateY(-20px) scale(0.95)';
-                    setTimeout(() => notification.remove(), 500);
-                }
-            }, 15000);
-            
-        } catch (error) {
-            console.warn('[Percent] 서버 오류 알림 표시 실패:', error);
-            // 폴백 알림
-            alert('⚠️ 서버 연결 문제가 발생했지만 가중치는 로컬에 저장되어 정상 작동합니다.');
-        }
-    }
-
-    // === 🔄 서버 재연결 시도 함수 ===
-    window.retryServerConnection = async function() {
-        try {
-            console.log('[Percent] 🔄 서버 재연결 시도...');
-            
-            if (appState.isRetryingServer) {
-                showNotification('이미 재연결을 시도하고 있습니다.', 'warning');
-                return;
-            }
-            
-            appState.isRetryingServer = true;
-            showNotification('서버 재연결을 시도하는 중...', 'info', 2000);
-            
-            // 현재 저장된 가중치 확인
-            const currentWeights = getCurrentWeights();
-            if (!currentWeights) {
-                showNotification('❌ 저장된 가중치가 없습니다.', 'error');
-                return;
-            }
-            
-            // 서버 상태 확인
-            const serverOk = await checkServerStatus();
-            if (!serverOk) {
-                showNotification('서버가 여전히 불안정합니다. 잠시 후 다시 시도해주세요.', 'warning', 4000);
-                return;
-            }
-            
-            // 가중치 서버 저장 재시도
-            const success = await attemptServerSave(currentWeights);
-            
-            if (success) {
-                appState.serverMode = 'hybrid';
-                updateConnectedPagesDisplay();
-                showNotification('✅ 서버 재연결 및 가중치 동기화 완료!', 'success', 4000);
-                
-                // 성공한 가중치를 다시 브로드캐스트
-                await notifyRankingUpdate(currentWeights, 100, true);
-            } else {
-                showNotification('❌ 서버 재연결에 실패했습니다. 클라이언트 모드로 계속 진행됩니다.', 'error', 5000);
-            }
-            
-        } catch (error) {
-            console.error('[Percent] ❌ 서버 재연결 실패:', error);
-            showNotification('❌ 서버 재연결에 실패했습니다.', 'error', 5000);
-        } finally {
-            appState.isRetryingServer = false;
-        }
-    };
-
-    // === 📊 현재 가중치 가져오기 함수 ===
-    function getCurrentWeights() {
-        try {
-            // 1. 메모리에서 확인
-            if (window.currentWeights) {
-                return window.currentWeights;
-            }
-            
-            // 2. localStorage에서 확인
-            const stored = localStorage.getItem('current_weights');
-            if (stored) {
-                const weightData = JSON.parse(stored);
-                return weightData.weights;
-            }
-            
-            // 3. DOM에서 확인 (슬라이더 값들)
-            const weights = {};
-            elements.percentInputs.forEach(input => {
-                if (!input.disabled) {
-                    const label = input.dataset.item;
-                    weights[label] = parseFloat(input.value.replace('%', '')) || 0;
-                }
-            });
-            
-            if (Object.keys(weights).length > 0) {
-                return weights;
-            }
-            
-            return null;
-            
-        } catch (error) {
-            console.error('[Percent] 현재 가중치 가져오기 실패:', error);
-            return null;
-        }
-    }
-
     // === 📢 랭킹 업데이트 알림 시스템 ===
-    async function notifyRankingUpdate(weights, totalWeight, serverSaved = false) {
+    async function notifyRankingUpdate(weights, totalWeight) {
         try {
             console.log('[Percent] 📢 랭킹 업데이트 알림 전송...');
             
@@ -550,23 +369,25 @@ document.addEventListener('DOMContentLoaded', function() {
                 weights: weights,
                 totalWeight: totalWeight,
                 clientSide: true,
-                serverSaved: serverSaved,
                 
                 // 🎯 클라이언트 전용 메타데이터
                 updateId: `client_update_${Date.now()}`,
+                userId: appState.userId,
                 connectedPages: Array.from(appState.connectedPages),
                 weightMapping: WEIGHT_CONFIG.DATA_FIELD_MAPPING,
-                mode: appState.serverMode
+                mode: 'client_only'
             };
             
             // 1. localStorage 이벤트
             localStorage.setItem('client_weight_change_event', JSON.stringify(updateData));
             localStorage.setItem('last_client_weight_update', Date.now().toString());
             
-            // 2. BroadcastChannel (실시간 통신)
-            if (window.weightUpdateChannel) {
-                window.weightUpdateChannel.postMessage(updateData);
-                console.log('[Percent] 📡 BroadcastChannel로 업데이트 알림 전송');
+            // 2. BroadcastChannel (실시간 통신) - 안전한 방식
+            const broadcastSuccess = safeBroadcast(updateData);
+            if (broadcastSuccess) {
+                console.log('[Percent] 📡 BroadcastChannel로 업데이트 알림 전송 성공');
+            } else {
+                console.warn('[Percent] ⚠️ BroadcastChannel 알림 실패, localStorage만 사용');
             }
             
             // 3. 커스텀 이벤트
@@ -578,11 +399,16 @@ document.addEventListener('DOMContentLoaded', function() {
             
         } catch (error) {
             console.error('[Percent] 랭킹 업데이트 알림 실패:', error);
-            throw error;
+            // 에러가 발생해도 localStorage는 작동하므로 완전히 실패하지 않음
+            console.log('[Percent] 📦 localStorage 이벤트는 정상 작동합니다');
         } finally {
             // localStorage 정리
             setTimeout(() => {
-                localStorage.removeItem('client_weight_change_event');
+                try {
+                    localStorage.removeItem('client_weight_change_event');
+                } catch (e) {
+                    // 무시
+                }
             }, 1000);
         }
     }
@@ -658,9 +484,10 @@ document.addEventListener('DOMContentLoaded', function() {
             
             // 메타데이터 추가
             settingsData._timestamp = Date.now();
-            settingsData._version = '3.1.0';
+            settingsData._version = '4.1.0';
             settingsData._lastApplied = appState.lastApplied?.toISOString();
-            settingsData._serverMode = appState.serverMode;
+            settingsData._mode = 'client_only';
+            settingsData._userId = appState.userId;
             
             localStorage.setItem(WEIGHT_CONFIG.STORAGE_KEY, JSON.stringify(settingsData));
             
@@ -677,6 +504,209 @@ document.addEventListener('DOMContentLoaded', function() {
             console.error('[Percent] 설정 저장 실패:', error);
             updateSaveStatus('error', '💥 저장 실패');
             throw error;
+        }
+    }
+
+    // === 🔄 초기화 함수 (개선된 버전) ===
+    function resetToDefaults() {
+        if (!confirm('모든 값을 초기값으로 되돌리시겠습니까?')) {
+            return;
+        }
+
+        try {
+            console.log('[Percent] 🔄 기본값으로 초기화...');
+
+            // 1. localStorage 완전 정리
+            localStorage.removeItem('current_weights');
+            localStorage.removeItem('client_weight_change_event');
+            localStorage.removeItem(WEIGHT_CONFIG.STORAGE_KEY);
+            localStorage.removeItem('last_client_weight_update');
+
+            // 2. 앱 상태 초기화
+            appState.currentWeights = null;
+            appState.lastWeightUpdate = null;
+            appState.lastApplied = null;
+            appState.lastCalculatedWeights = null;
+
+            // 3. 모든 체크박스 체크
+            elements.checkboxInputs.forEach(checkbox => {
+                checkbox.checked = true;
+            });
+
+            // 4. 모든 입력 필드 초기값 설정
+            elements.percentInputs.forEach(input => {
+                const label = input.dataset.item;
+                const defaultValue = WEIGHT_CONFIG.DEFAULT_WEIGHTS[label];
+                
+                if (defaultValue !== undefined) {
+                    input.value = defaultValue + '%';
+                    input.disabled = false;
+                    updateInputStyle(input, true);
+                }
+            });
+
+            // 5. UI 업데이트
+            calculateAndDisplayTotal();
+            updateSaveStatus('reset', '🔄 초기화됨');
+            updateLastSavedDisplay();
+
+            // 6. 🎯 다른 페이지들에 초기화 알림 전송
+            const resetData = {
+                type: 'client_weights_reset',
+                timestamp: new Date().toISOString(),
+                source: 'percent_page',
+                action: 'reset_to_original',
+                clientSide: true,
+                userId: appState.userId,
+                mode: 'client_only'
+            };
+
+            // localStorage 이벤트
+            localStorage.setItem('client_weight_change_event', JSON.stringify(resetData));
+            
+            // BroadcastChannel 알림
+            const broadcastSuccess = safeBroadcast(resetData);
+            if (broadcastSuccess) {
+                console.log('[Percent] 📡 초기화 알림 전송 성공');
+            }
+
+            // 커스텀 이벤트
+            document.dispatchEvent(new CustomEvent('clientWeightSettingsReset', {
+                detail: resetData
+            }));
+
+            showNotification('기본값으로 초기화되었습니다. 다른 페이지들도 원본 데이터로 복원됩니다.', 'info');
+            console.log('[Percent] ✅ 기본값 초기화 완료');
+
+            // 7. localStorage 정리 (1초 후)
+            setTimeout(() => {
+                try {
+                    localStorage.removeItem('client_weight_change_event');
+                } catch (e) {
+                    // 무시
+                }
+            }, 1000);
+            
+        } catch (error) {
+            console.error('[Percent] 기본값 초기화 실패:', error);
+            showNotification('초기화에 실패했습니다', 'error');
+        }
+    }
+
+    // === 🔄 강제 초기화 함수들 ===
+    async function forceResetAllPages() {
+        try {
+            console.log('[Percent] 🔄 모든 페이지 강제 원본 복원...');
+            
+            // 1. localStorage 완전 정리
+            localStorage.removeItem('current_weights');
+            localStorage.removeItem('client_weight_change_event');
+            localStorage.removeItem(WEIGHT_CONFIG.STORAGE_KEY);
+            localStorage.removeItem('last_client_weight_update');
+            
+            // 2. 앱 상태 초기화
+            appState.currentWeights = null;
+            appState.lastWeightUpdate = null;
+            appState.lastApplied = null;
+            appState.lastCalculatedWeights = null;
+            
+            // 3. 강제 초기화 알림 전송
+            const forceResetData = {
+                type: 'force_reset_to_original',
+                timestamp: new Date().toISOString(),
+                source: 'percent_page',
+                action: 'force_reset',
+                clientSide: true,
+                userId: appState.userId,
+                mode: 'emergency_reset'
+            };
+            
+            // 여러 방법으로 알림 전송
+            localStorage.setItem('client_weight_change_event', JSON.stringify(forceResetData));
+            
+            const broadcastSuccess = safeBroadcast(forceResetData);
+            if (broadcastSuccess) {
+                console.log('[Percent] 📡 강제 초기화 알림 전송 성공');
+            }
+            
+            document.dispatchEvent(new CustomEvent('forceResetToOriginal', {
+                detail: forceResetData
+            }));
+            
+            // 4. UI도 기본값으로 설정 (초기화 함수 호출하지 않고 직접)
+            elements.checkboxInputs.forEach(checkbox => {
+                checkbox.checked = true;
+            });
+            
+            elements.percentInputs.forEach(input => {
+                const label = input.dataset.item;
+                const defaultValue = WEIGHT_CONFIG.DEFAULT_WEIGHTS[label];
+                
+                if (defaultValue !== undefined) {
+                    input.value = defaultValue + '%';
+                    input.disabled = false;
+                    updateInputStyle(input, true);
+                }
+            });
+            
+            calculateAndDisplayTotal();
+            updateSaveStatus('reset', '🔄 강제 초기화됨');
+            updateLastSavedDisplay();
+            
+            showNotification('모든 페이지가 원본 데이터로 강제 복원되었습니다!', 'success', 5000);
+            console.log('[Percent] ✅ 강제 원본 복원 완료');
+            
+            // 5초 후 localStorage 정리
+            setTimeout(() => {
+                try {
+                    localStorage.removeItem('client_weight_change_event');
+                } catch (e) {
+                    // 무시
+                }
+            }, 5000);
+            
+        } catch (error) {
+            console.error('[Percent] 강제 원본 복원 실패:', error);
+            showNotification('강제 복원에 실패했습니다', 'error');
+        }
+    }
+
+    function clearAllWeightData() {
+        try {
+            console.log('[Percent] 🧹 모든 가중치 데이터 정리...');
+            
+            // localStorage 완전 정리
+            const keysToRemove = [
+                'current_weights',
+                'client_weight_change_event', 
+                'last_client_weight_update',
+                WEIGHT_CONFIG.STORAGE_KEY,
+                WEIGHT_CONFIG.BACKUP_KEY,
+                'client_user_id'
+            ];
+            
+            keysToRemove.forEach(key => {
+                try {
+                    localStorage.removeItem(key);
+                    console.log(`[Percent] 🗑️ ${key} 제거됨`);
+                } catch (e) {
+                    console.warn(`[Percent] ${key} 제거 실패:`, e);
+                }
+            });
+            
+            // 상태 완전 초기화
+            appState.currentWeights = null;
+            appState.lastWeightUpdate = null;
+            appState.lastApplied = null;
+            appState.lastCalculatedWeights = null;
+            appState.connectedPages.clear();
+            
+            showNotification('모든 가중치 데이터가 정리되었습니다', 'info');
+            console.log('[Percent] ✅ 데이터 정리 완료');
+            
+        } catch (error) {
+            console.error('[Percent] 데이터 정리 실패:', error);
+            showNotification('데이터 정리에 실패했습니다', 'error');
         }
     }
 
@@ -722,9 +752,14 @@ document.addEventListener('DOMContentLoaded', function() {
                 event.returnValue = '저장되지 않은 변경사항이 있습니다.';
             }
             
-            // BroadcastChannel 정리
+            // BroadcastChannel 정리 (안전하게)
             if (window.weightUpdateChannel) {
-                window.weightUpdateChannel.close();
+                try {
+                    window.weightUpdateChannel.close();
+                } catch (e) {
+                    // 이미 닫혔을 수 있음, 무시
+                }
+                window.weightUpdateChannel = null;
             }
         });
     }
@@ -822,52 +857,15 @@ document.addEventListener('DOMContentLoaded', function() {
         totalDisplay.className = `total-display ${isValid ? 'valid' : 'invalid'}`;
         
         totalDisplay.innerHTML = `
-            <div style="display: flex; justify-content: space-between; align-items: center; padding: 12px 16px; background: ${isValid ? '#f0f9ff' : '#fef2f2'}; border: 1px solid ${isValid ? '#3b82f6' : '#ef4444'}; border-radius: 8px; margin-top: 15px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; padding: 12px 16px; background: ${isValid ? '#f0f9ff' : '#fef2f2'}; border: 1px solid ${isValid ? '#10b981' : '#ef4444'}; border-radius: 8px; margin-top: 15px;">
                 <span style="color: #64748b;">활성 항목: <strong>${activeCount}개</strong></span>
-                <span style="color: ${isValid ? '#0ea5e9' : '#ef4444'};">총합: <strong>${total.toFixed(1)}%</strong></span>
+                <span style="color: ${isValid ? '#10b981' : '#ef4444'};">총합: <strong>${total.toFixed(1)}%</strong></span>
                 ${isValid ? 
                     '<span style="color: #10b981; font-weight: 600;">✓ 순위 적용 가능</span>' : 
                     '<span style="color: #ef4444; font-weight: 600;">⚠ 100%로 조정 필요</span>'
                 }
             </div>
         `;
-    }
-
-    function resetToDefaults() {
-        if (!confirm('모든 값을 초기값으로 되돌리시겠습니까?')) {
-            return;
-        }
-
-        try {
-            console.log('[Percent] 🔄 기본값으로 초기화...');
-
-            // 모든 체크박스 체크
-            elements.checkboxInputs.forEach(checkbox => {
-                checkbox.checked = true;
-            });
-
-            // 모든 입력 필드 초기값 설정
-            elements.percentInputs.forEach(input => {
-                const label = input.dataset.item;
-                const defaultValue = WEIGHT_CONFIG.DEFAULT_WEIGHTS[label];
-                
-                if (defaultValue !== undefined) {
-                    input.value = defaultValue + '%';
-                    input.disabled = false;
-                    updateInputStyle(input, true);
-                }
-            });
-
-            calculateAndDisplayTotal();
-            scheduleAutoApply();
-            
-            showNotification('기본값으로 초기화되었습니다', 'info');
-            console.log('[Percent] ✅ 기본값 초기화 완료');
-            
-        } catch (error) {
-            console.error('[Percent] 기본값 초기화 실패:', error);
-            showNotification('초기화에 실패했습니다', 'error');
-        }
     }
 
     // === 기타 UI 함수들 ===
@@ -883,13 +881,13 @@ document.addEventListener('DOMContentLoaded', function() {
         
         const savedTime = appState.lastSaved ? appState.lastSaved.toLocaleTimeString('ko-KR') : '없음';
         const appliedTime = appState.lastApplied ? appState.lastApplied.toLocaleTimeString('ko-KR') : '없음';
-        const serverStatus = appState.serverMode === 'hybrid' ? '🌐 서버 연결' : '💻 클라이언트 모드';
         
         elements.lastUpdated.innerHTML = `
             <div style="font-size: 12px; color: #64748b;">
                 <div>💾 마지막 저장: ${savedTime}</div>
                 <div>🎯 마지막 적용: ${appliedTime}</div>
-                <div>${serverStatus}</div>
+                <div>💻 클라이언트 전용 모드</div>
+                <div>👤 ID: ${appState.userId.substr(-8)}</div>
             </div>
         `;
     }
@@ -916,6 +914,50 @@ document.addEventListener('DOMContentLoaded', function() {
         
         // 연결 상태 표시 초기화
         updateConnectedPagesDisplay();
+        
+        // 클라이언트 모드 알림 표시
+        showClientModeInfo();
+    }
+
+    // === 💻 클라이언트 모드 정보 표시 ===
+    function showClientModeInfo() {
+        try {
+            let infoElement = document.getElementById('client-mode-info');
+            if (!infoElement) {
+                infoElement = document.createElement('div');
+                infoElement.id = 'client-mode-info';
+                infoElement.style.cssText = `
+                    margin: 10px 0; padding: 12px 16px; 
+                    background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
+                    color: white; border-radius: 8px; font-size: 13px;
+                    box-shadow: 0 2px 8px rgba(59, 130, 246, 0.2);
+                `;
+                
+                // 상단에 추가
+                const container = document.querySelector('.main') || document.body;
+                const firstChild = container.firstChild;
+                if (firstChild) {
+                    container.insertBefore(infoElement, firstChild);
+                } else {
+                    container.appendChild(infoElement);
+                }
+            }
+            
+            infoElement.innerHTML = `
+                <div style="display: flex; align-items: center; gap: 10px;">
+                    <span style="font-size: 16px;">💻</span>
+                    <div>
+                        <div style="font-weight: 600;">클라이언트 전용 모드</div>
+                        <div style="font-size: 11px; opacity: 0.9; margin-top: 2px;">
+                            각 사용자별 독립적인 가중치 설정 • 실시간 랭킹 업데이트 • 로컬 저장
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+        } catch (error) {
+            console.warn('[Percent] 클라이언트 모드 정보 표시 실패:', error);
+        }
     }
 
     // === 🔔 알림 시스템 ===
@@ -929,7 +971,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 const notification = document.createElement('div');
                 notification.style.cssText = `
                     position: fixed; top: 20px; right: 20px; padding: 12px 20px;
-                    background: ${type === 'success' ? '#4caf50' : type === 'error' ? '#f44336' : type === 'warning' ? '#ff9800' : '#2196f3'};
+                    background: ${type === 'success' ? '#10b981' : type === 'error' ? '#ef4444' : type === 'warning' ? '#f59e0b' : '#3b82f6'};
                     color: white; border-radius: 8px; z-index: 10000; font-size: 13px;
                     max-width: 400px; box-shadow: 0 4px 12px rgba(0,0,0,0.15);
                     font-family: 'Blinker', sans-serif; opacity: 0; transform: translateX(100%);
@@ -1017,11 +1059,12 @@ document.addEventListener('DOMContentLoaded', function() {
             const settingsData = {
                 weights: {},
                 metadata: {
-                    version: '3.1.0',
+                    version: '4.1.0',
                     exportDate: new Date().toISOString(),
-                    source: 'percent_client_v3_1',
+                    source: 'percent_client_v4',
                     lastApplied: appState.lastApplied?.toISOString(),
-                    serverMode: appState.serverMode
+                    mode: 'client_only',
+                    userId: appState.userId
                 }
             };
             
@@ -1105,42 +1148,111 @@ document.addEventListener('DOMContentLoaded', function() {
         save: saveSettings,
         apply: applyWeightsToRanking,
         reset: resetToDefaults,
-        retryServer: window.retryServerConnection,
         getState: () => appState,
-        getCurrentWeights: getCurrentWeights,
-        checkServerStatus: checkServerStatus,
-        version: '3.1.0'
+        getCurrentWeights: () => {
+            const weights = {};
+            elements.percentInputs.forEach(input => {
+                if (!input.disabled) {
+                    const label = input.dataset.item;
+                    weights[label] = parseFloat(input.value.replace('%', '')) || 0;
+                }
+            });
+            return weights;
+        },
+        getUserId: () => appState.userId,
+        version: '4.1.0'
     };
 
-    // === 🔧 개발자 도구 ===
+    // === 🔧 개발자 도구 (개선된 버전) ===
     window.debugClientWeights = {
         state: appState,
         config: WEIGHT_CONFIG,
-        getCurrentWeights: getCurrentWeights,
+        getCurrentWeights: () => window.ClientWeightSystem.getCurrentWeights(),
         testNotification: (msg, type) => showNotification(msg, type),
         simulateWeightUpdate: () => applyWeightsToRanking(),
         checkConnectedPages: checkConnectedPages,
-        retryServer: window.retryServerConnection,
-        checkServerStatus: checkServerStatus,
-        simulateServerError: () => {
-            appState.serverMode = 'client';
-            showServerErrorNotification(new Error('500 Internal Server Error (Simulated)'));
+        getUserId: () => appState.userId,
+        resetUserId: () => {
+            localStorage.removeItem('client_user_id');
+            appState.userId = generateUserId();
+            console.log('[Percent] 새로운 사용자 ID:', appState.userId);
+            updateConnectedPagesDisplay();
+            updateLastSavedDisplay();
         },
+        recreateChannel: () => {
+            console.log('[Percent] BroadcastChannel 재생성 시도...');
+            const success = createBroadcastChannel();
+            console.log('[Percent] 재생성 결과:', success ? '성공' : '실패');
+            return success;
+        },
+        getChannelStatus: () => {
+            return {
+                exists: !!window.weightUpdateChannel,
+                type: typeof window.weightUpdateChannel,
+                supported: typeof BroadcastChannel !== 'undefined'
+            };
+        },
+        testBroadcast: (testData = { test: true, timestamp: new Date().toISOString() }) => {
+            const success = safeBroadcast(testData);
+            console.log('[Percent] 테스트 브로드캐스트 결과:', success ? '성공' : '실패');
+            return success;
+        },
+        
+        // 🆕 새로운 디버그 함수들
+        forceResetAll: forceResetAllPages,
+        clearAllData: clearAllWeightData,
+        
+        // 연결된 페이지들 상태 확인
+        checkAllConnections: () => {
+            console.log('[Percent] 🔍 연결된 페이지 확인 중...');
+            checkConnectedPages();
+            setTimeout(() => {
+                console.log('[Percent] 연결된 페이지:', Array.from(appState.connectedPages));
+                console.log('[Percent] 연결 수:', appState.connectedPages.size);
+            }, 1000);
+        },
+        
+        // 긴급 복구 함수
+        emergencyReset: () => {
+            console.log('[Percent] 🚨 긴급 복구 시작...');
+            clearAllWeightData();
+            setTimeout(() => {
+                forceResetAllPages();
+            }, 500);
+            setTimeout(() => {
+                location.reload();
+            }, 2000);
+        },
+        
         help: () => {
-            console.log('[Percent] 🔧 클라이언트 사이드 가중치 시스템 디버그 도구 (v3.1.0):');
+            console.log('[Percent] 🔧 클라이언트 전용 가중치 시스템 디버그 도구 (v4.1.0):');
+            console.log('  기본 함수:');
             console.log('  - getCurrentWeights(): 현재 가중치 반환');
             console.log('  - testNotification(msg, type): 알림 테스트');
             console.log('  - simulateWeightUpdate(): 가중치 업데이트 시뮬레이션');
             console.log('  - checkConnectedPages(): 연결된 페이지 확인');
-            console.log('  - retryServer(): 서버 재연결 시도');
-            console.log('  - checkServerStatus(): 서버 상태 확인');
-            console.log('  - simulateServerError(): 서버 오류 시뮬레이션');
+            console.log('  - getUserId(): 현재 사용자 ID 확인');
+            console.log('  - resetUserId(): 새로운 사용자 ID 생성');
+            console.log('  - recreateChannel(): BroadcastChannel 재생성');
+            console.log('  - getChannelStatus(): 채널 상태 확인');
+            console.log('  - testBroadcast(): 브로드캐스트 테스트');
+            console.log('  복구 함수:');
+            console.log('  - forceResetAll(): 모든 페이지 강제 원본 복원');
+            console.log('  - clearAllData(): 모든 가중치 데이터 정리');
+            console.log('  - checkAllConnections(): 모든 연결 상태 확인');
+            console.log('  - emergencyReset(): 긴급 전체 복구 (주의!)');
         }
     };
+
+    // 전역 함수로도 등록
+    window.forceResetAllPages = forceResetAllPages;
+    window.clearAllWeightData = clearAllWeightData;
 
     // === 🚀 앱 시작 ===
     initializeApp();
 
-    console.log('[Percent] ✅ 클라이언트 사이드 가중치 시스템 + 서버 오류 처리 강화 로드 완료 (v3.1.0)');
+    console.log('[Percent] ✅ 클라이언트 전용 가중치 시스템 로드 완료 (v4.1.0 - 초기화 개선)');
+    console.log('[Percent] 💻 완전 클라이언트 모드 - 서버 저장 없음');
+    console.log('[Percent] 👤 사용자 ID:', appState.userId);
     console.log('[Percent] 🔧 디버그: window.debugClientWeights.help()');
 });
