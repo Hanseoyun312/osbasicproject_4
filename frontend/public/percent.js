@@ -26,6 +26,7 @@ function updateTotal() {
     inputs.forEach(input => {
         weights[input.dataset.weight] = parseFloat(input.value) || 0;
     });
+    
     localStorage.setItem('user_weights', JSON.stringify(weights));
 }
 
@@ -486,9 +487,15 @@ function restoreWeightsFromLocalStorage() {
                 }
             });
             updateTotal();
-        } catch (e) {}
+            console.log('[restoreWeightsFromLocalStorage] 복원 완료:', weights);
+        } catch (e) {
+            console.error('[restoreWeightsFromLocalStorage] 복원 에러', e);
+        }
+    } else {
+        console.log('[restoreWeightsFromLocalStorage] 저장된 값 없음');
     }
 }
+
 
 // 1) DOMContentLoaded - input이 거의 다 렌더됨
 document.addEventListener('DOMContentLoaded', restoreWeightsFromLocalStorage);
