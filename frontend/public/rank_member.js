@@ -1,15 +1,15 @@
 /**
- * rank_member.js (v3.3.0) - 클라이언트 사이드 가중치 연동 의원 랭킹 시스템 (완전 통합 버전)
- * 개선사항: rank_party.js와 동일한 구조로 통합, BroadcastChannel v4 통일, 향상된 검색 기능
+ * rank_member.js (v4.0.0) - API 계산 데이터 수신 의원 랭킹 시스템
+ * 개선사항: percent.js에서 계산된 완성 데이터를 받아서 표시
  */
 
 document.addEventListener('DOMContentLoaded', function() {
-    console.log('🚀 클라이언트 가중치 연동 의원 랭킹 페이지 로드 시작 (v3.3.0)');
+    console.log('🚀 API 계산 데이터 수신 의원 랭킹 페이지 로드 시작 (v4.0.0)');
 
     // === 📊 페이지 상태 관리 ===
     let memberList = [];
-    let memberRanking = [];
-    let originalMemberData = [];  // 원본 데이터 보관
+    let originalMemberData = [];  // API 원본 데이터
+    let calculatedMemberData = []; // percent.js에서 계산된 데이터
     let filteredMembers = [];
     let currentPage = 1;
     let itemsPerPage = 20;
@@ -21,13 +21,14 @@ document.addEventListener('DOMContentLoaded', function() {
     let hasError = false;
     let initialized = false;
 
-    // 🎯 클라이언트 가중치 관련 상태
-    let weightSyncState = {
-        currentWeights: null,
-        lastWeightUpdate: null,
-        isRecalculating: false,
+    // 🎯 API 계산 데이터 수신 관련 상태
+    let dataReceiveState = {
+        isUsingCalculatedData: false,
+        lastDataReceived: null,
+        calculationTimestamp: null,
+        percentPageConnected: false,
         realTimeUpdateChannel: null,
-        percentPageConnected: false
+        appliedWeights: null
     };
     
     // 🔍 향상된 검색 상태
@@ -45,35 +46,6 @@ document.addEventListener('DOMContentLoaded', function() {
         lastSearchTime: null
     };
 
-    // === 🧮 가중치 계산 설정 ===
-    const WEIGHT_CALCULATOR = {
-        // percent.js와 동일한 매핑
-        FIELD_MAPPING: {
-            '간사': 'committee_secretary_count',
-            '무효표 및 기권': 'invalid_vote_ratio',
-            '본회의 가결': 'bill_pass_sum',
-            '위원장': 'committee_leader_count',
-            '청원 소개': 'petition_sum',
-            '청원 결과': 'petition_pass_sum',
-            '출석': 'attendance_rate',
-            '투표 결과 일치': 'vote_match_ratio',
-            '투표 결과 불일치': 'vote_mismatch_ratio'
-        },
-
-        // 데이터 정규화를 위한 기준값들 (실제 데이터에서 동적으로 계산)
-        normalizationBounds: {
-            committee_secretary_count: { min: 0, max: 10 },
-            invalid_vote_ratio: { min: 0, max: 100 },
-            bill_pass_sum: { min: 0, max: 500 },
-            committee_leader_count: { min: 0, max: 5 },
-            petition_sum: { min: 0, max: 200 },
-            petition_pass_sum: { min: 0, max: 100 },
-            attendance_rate: { min: 0, max: 100 },
-            vote_match_ratio: { min: 0, max: 100 },
-            vote_mismatch_ratio: { min: 0, max: 100 }
-        }
-    };
-
     // === 📡 안전한 BroadcastChannel 관리 ===
     function createBroadcastChannel() {
         if (typeof BroadcastChannel === 'undefined') {
@@ -83,33 +55,36 @@ document.addEventListener('DOMContentLoaded', function() {
 
         try {
             // 기존 채널이 있으면 정리
-            if (weightSyncState.realTimeUpdateChannel) {
+            if (dataReceiveState.realTimeUpdateChannel) {
                 try {
-                    weightSyncState.realTimeUpdateChannel.close();
+                    dataReceiveState.realTimeUpdateChannel.close();
                 } catch (e) {
                     // 이미 닫혔을 수 있음
                 }
             }
 
             // 🔧 통일된 채널명 사용 (v4)
-            weightSyncState.realTimeUpdateChannel = new BroadcastChannel('client_weight_updates_v4');
+            dataReceiveState.realTimeUpdateChannel = new BroadcastChannel('client_weight_updates_v4');
             
-            weightSyncState.realTimeUpdateChannel.addEventListener('message', async function(event) {
+            dataReceiveState.realTimeUpdateChannel.addEventListener('message', async function(event) {
                 try {
                     const data = event.data;
-                    console.log('[RankMember] 📡 가중치 업데이트 수신:', data);
+                    console.log('[RankMember] 📡 데이터 수신:', data.type);
                     
-                    if (data.type === 'client_weights_updated' && data.source === 'percent_page') {
-                        await handleClientWeightUpdate(data);
+                    if (data.type === 'calculated_data_distribution' && data.source === 'percent_page') {
+                        await handleCalculatedDataReceived(data);
+                    } else if (data.type === 'data_reset_to_original' && data.source === 'percent_page') {
+                        await handleDataResetRequest(data);
                     } else if (data.type === 'connection_check') {
                         // percent 페이지의 연결 확인 요청에 응답
                         safeBroadcast({
                             type: 'connection_response',
                             source: 'rank_member_page',
                             timestamp: new Date().toISOString(),
-                            status: 'connected'
+                            status: 'connected',
+                            data_mode: dataReceiveState.isUsingCalculatedData ? 'calculated' : 'original'
                         });
-                        weightSyncState.percentPageConnected = true;
+                        dataReceiveState.percentPageConnected = true;
                         updateConnectionStatus();
                     }
                 } catch (error) {
@@ -118,7 +93,7 @@ document.addEventListener('DOMContentLoaded', function() {
             });
 
             // 채널 오류 처리
-            weightSyncState.realTimeUpdateChannel.addEventListener('error', function(error) {
+            dataReceiveState.realTimeUpdateChannel.addEventListener('error', function(error) {
                 console.warn('[RankMember] BroadcastChannel 오류:', error);
                 // 채널 재생성 시도
                 setTimeout(createBroadcastChannel, 1000);
@@ -129,7 +104,7 @@ document.addEventListener('DOMContentLoaded', function() {
             
         } catch (error) {
             console.error('[RankMember] BroadcastChannel 초기화 실패:', error);
-            weightSyncState.realTimeUpdateChannel = null;
+            dataReceiveState.realTimeUpdateChannel = null;
             return false;
         }
     }
@@ -137,14 +112,14 @@ document.addEventListener('DOMContentLoaded', function() {
     // === 📡 안전한 브로드캐스트 함수 ===
     function safeBroadcast(data) {
         try {
-            if (!weightSyncState.realTimeUpdateChannel) {
+            if (!dataReceiveState.realTimeUpdateChannel) {
                 // 채널이 없으면 재생성 시도
                 if (!createBroadcastChannel()) {
                     return false;
                 }
             }
 
-            weightSyncState.realTimeUpdateChannel.postMessage(data);
+            dataReceiveState.realTimeUpdateChannel.postMessage(data);
             return true;
             
         } catch (error) {
@@ -153,7 +128,7 @@ document.addEventListener('DOMContentLoaded', function() {
             // 채널 재생성 시도
             if (createBroadcastChannel()) {
                 try {
-                    weightSyncState.realTimeUpdateChannel.postMessage(data);
+                    dataReceiveState.realTimeUpdateChannel.postMessage(data);
                     return true;
                 } catch (retryError) {
                     console.warn('[RankMember] 재시도 후에도 브로드캐스트 실패:', retryError);
@@ -164,9 +139,9 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
 
-    // === 🔗 실시간 연동 시스템 초기화 ===
-    function initializeRealTimeSync() {
-        console.log('[RankMember] 🔗 클라이언트 가중치 연동 시스템 초기화...');
+    // === 🔗 실시간 데이터 수신 시스템 초기화 ===
+    function initializeRealTimeDataReceive() {
+        console.log('[RankMember] 🔗 API 계산 데이터 수신 시스템 초기화...');
         
         try {
             // 1. BroadcastChannel 설정
@@ -174,61 +149,39 @@ document.addEventListener('DOMContentLoaded', function() {
             
             // 2. localStorage 이벤트 감지
             window.addEventListener('storage', function(e) {
-                if (e.key === 'client_weight_change_event' && !weightSyncState.isRecalculating) {
+                if (e.key === 'calculated_data_distribution' && !isLoading) {
                     try {
                         const eventData = JSON.parse(e.newValue);
-                        console.log('[RankMember] 📢 localStorage 가중치 변경 감지:', eventData);
-                        handleClientWeightUpdate(eventData);
+                        console.log('[RankMember] 📢 localStorage 계산 데이터 변경 감지:', eventData.type);
+                        if (eventData.type === 'calculated_data_distribution') {
+                            handleCalculatedDataReceived(eventData);
+                        } else if (eventData.type === 'data_reset_to_original') {
+                            handleDataResetRequest(eventData);
+                        }
                     } catch (error) {
                         console.warn('[RankMember] localStorage 이벤트 파싱 실패:', error);
                     }
                 }
             });
             
-            // 3. 저장된 가중치 확인 및 로드
-            loadStoredWeights();
-            
-            console.log('[RankMember] ✅ 실시간 연동 시스템 초기화 완료');
+            console.log('[RankMember] ✅ 실시간 데이터 수신 시스템 초기화 완료');
             
         } catch (error) {
-            console.error('[RankMember] 실시간 연동 시스템 초기화 실패:', error);
+            console.error('[RankMember] 실시간 데이터 수신 시스템 초기화 실패:', error);
         }
     }
 
-    // === 💾 저장된 가중치 로드 ===
-    function loadStoredWeights() {
-        try {
-            const storedWeights = localStorage.getItem('current_weights');
-            if (storedWeights) {
-                const weightData = JSON.parse(storedWeights);
-                console.log('[RankMember] 📥 저장된 가중치 로드:', weightData);
-                
-                weightSyncState.currentWeights = weightData.weights;
-                weightSyncState.lastWeightUpdate = new Date(weightData.timestamp);
-                
-                // 데이터가 이미 로드되었다면 즉시 재계산
-                if (originalMemberData.length > 0) {
-                    recalculateMemberScores();
-                }
-            } else {
-                console.log('[RankMember] 📋 저장된 가중치 없음 - 기본 점수 사용');
-            }
-        } catch (error) {
-            console.error('[RankMember] 저장된 가중치 로드 실패:', error);
-        }
-    }
-
-    // === 🎯 핵심: 클라이언트 가중치 업데이트 처리 ===
-    async function handleClientWeightUpdate(eventData) {
-        if (weightSyncState.isRecalculating) {
-            console.log('[RankMember] 🔄 이미 재계산 중입니다.');
+    // === 🎯 핵심: percent.js에서 계산된 데이터 수신 처리 ===
+    async function handleCalculatedDataReceived(eventData) {
+        if (isLoading) {
+            console.log('[RankMember] 🔄 이미 처리 중입니다.');
             return;
         }
 
         try {
-            weightSyncState.isRecalculating = true;
+            isLoading = true;
             
-            console.log('[RankMember] 🎯 클라이언트 가중치 업데이트 시작...');
+            console.log('[RankMember] 🎯 계산된 의원 데이터 수신 처리 시작...');
             
             // 🔍 현재 검색 상태 저장
             const currentSearchState = {
@@ -239,267 +192,119 @@ document.addEventListener('DOMContentLoaded', function() {
             };
             
             // 사용자에게 알림
-            showWeightUpdateNotification('가중치가 변경되었습니다. 의원 순위를 재계산하는 중...', 'info', 3000);
+            showDataUpdateNotification('percent.js에서 계산된 의원 데이터를 적용하는 중...', 'info', 3000);
             
             // 로딩 상태 표시
-            setLoadingState(true, '새로운 가중치로 순위 재계산 중...');
+            setLoadingState(true, 'API 계산 데이터로 순위 업데이트 중...');
             
-            // 가중치 업데이트
-            weightSyncState.currentWeights = eventData.weights;
-            weightSyncState.lastWeightUpdate = new Date(eventData.timestamp);
-            
-            // 🧮 의원 점수 재계산
-            await recalculateMemberScores();
+            // 🎯 계산된 의원 데이터 적용
+            if (eventData.memberData && eventData.memberData.full_list) {
+                calculatedMemberData = eventData.memberData.full_list.map((member, index) => ({
+                    rank: index + 1,
+                    name: member.name,
+                    party: member.party,
+                    contact: '', // 기본값
+                    homepage: '', // 기본값
+                    
+                    // 계산된 점수 정보
+                    calculatedScore: member.calculated_score,
+                    originalScore: member.original_score,
+                    scoreChanged: member.score_changed,
+                    scoreSource: 'api_calculated',
+                    lastUpdated: member.calculation_timestamp,
+                    weightApplied: member.weight_applied,
+                    
+                    // 메타데이터
+                    _isCalculated: true,
+                    _calculationMethod: 'api_weighted'
+                }));
+                
+                // 🎯 상태 업데이트
+                dataReceiveState.isUsingCalculatedData = true;
+                dataReceiveState.lastDataReceived = new Date(eventData.timestamp);
+                dataReceiveState.calculationTimestamp = eventData.timestamp;
+                dataReceiveState.appliedWeights = eventData.appliedWeights;
+                
+                // 현재 데이터를 계산된 데이터로 교체
+                filteredMembers = [...calculatedMemberData];
+                
+                console.log(`[RankMember] ✅ 계산된 의원 데이터 적용 완료: ${calculatedMemberData.length}명`);
+            } else {
+                throw new Error('유효한 의원 계산 데이터가 없습니다');
+            }
             
             // 🔍 검색 상태 복원
             await restoreSearchState(currentSearchState);
             
-            // 성공 알림
-            showWeightUpdateNotification('✅ 의원 순위가 새로운 가중치로 업데이트되었습니다!', 'success', 4000);
+            // 연결 상태 업데이트
+            dataReceiveState.percentPageConnected = true;
+            updateConnectionStatus();
             
-            console.log('[RankMember] ✅ 클라이언트 가중치 업데이트 완료');
+            // 성공 알림
+            const weightCount = eventData.appliedWeights ? Object.keys(eventData.appliedWeights).length : 0;
+            showDataUpdateNotification(
+                `✅ API 계산 데이터 적용 완료! ${calculatedMemberData.length}명 (${weightCount}개 가중치)`, 
+                'success', 
+                4000
+            );
+            
+            console.log('[RankMember] ✅ 계산된 데이터 수신 처리 완료');
             
         } catch (error) {
-            console.error('[RankMember] ❌ 클라이언트 가중치 업데이트 실패:', error);
-            showWeightUpdateNotification(`순위 업데이트 실패: ${error.message}`, 'error', 5000);
+            console.error('[RankMember] ❌ 계산된 데이터 수신 처리 실패:', error);
+            showDataUpdateNotification(`데이터 수신 실패: ${error.message}`, 'error', 5000);
         } finally {
-            weightSyncState.isRecalculating = false;
+            isLoading = false;
             setLoadingState(false);
         }
     }
 
-    // === 🔍 검색 상태 복원 ===
-    async function restoreSearchState(searchState) {
+    // === 🔄 데이터 리셋 요청 처리 ===
+    async function handleDataResetRequest(eventData) {
         try {
-            console.log('[RankMember] 🔍 검색 상태 복원:', searchState);
+            console.log('[RankMember] 🔄 데이터 리셋 요청 수신:', eventData.action);
             
-            // 검색어 복원
-            if (searchState.query) {
-                searchQuery = searchState.query;
-                if (elements.searchInput) {
-                    elements.searchInput.value = searchState.query;
-                }
-            }
+            showDataUpdateNotification('원본 데이터로 복원하는 중...', 'info', 2000);
             
-            // 필터 복원
-            currentFilter = searchState.filter;
-            if (elements.filterButtons) {
-                elements.filterButtons.forEach(btn => {
-                    btn.classList.toggle('active', btn.dataset.filter === searchState.filter);
-                });
-            }
+            // 계산된 데이터 상태 해제
+            dataReceiveState.isUsingCalculatedData = false;
+            dataReceiveState.lastDataReceived = null;
+            dataReceiveState.calculationTimestamp = null;
+            dataReceiveState.appliedWeights = null;
+            calculatedMemberData = [];
             
-            // 정렬 복원
-            currentSort = searchState.sort;
-            if (elements.sortDropdown) {
-                elements.sortDropdown.querySelectorAll('.dropdown-item').forEach(item => {
-                    item.classList.toggle('active', item.dataset.sort === searchState.sort);
-                });
-            }
-            
-            // 필터 및 검색 적용
-            applyCurrentFiltersAndSort();
-            
-            // 페이지 복원 (데이터 범위 내에서)
-            const maxPage = Math.ceil(filteredMembers.length / itemsPerPage);
-            currentPage = Math.min(searchState.page, maxPage) || 1;
-            
-            // UI 업데이트
-            renderTable();
-            renderPagination();
-            
-            // 검색 결과 업데이트
-            if (searchQuery) {
-                updateSearchResults();
-                showSearchInfo();
-            }
-            
-            console.log('[RankMember] ✅ 검색 상태 복원 완료');
-            
-        } catch (error) {
-            console.error('[RankMember] ❌ 검색 상태 복원 실패:', error);
-        }
-    }
-
-    // === 🧮 핵심: 의원 점수 재계산 ===
-    async function recalculateMemberScores() {
-        try {
-            console.log('[RankMember] 🧮 의원 점수 재계산 시작...');
-            
-            if (!weightSyncState.currentWeights) {
-                console.log('[RankMember] ⚠️ 가중치가 없어서 기본 점수 사용');
-                return;
-            }
-            
-            if (originalMemberData.length === 0) {
-                console.log('[RankMember] ⚠️ 원본 데이터가 없어서 재계산 불가');
-                return;
-            }
-            
-            // 1. 정규화 기준값 계산
-            const bounds = calculateNormalizationBounds(originalMemberData);
-            
-            // 2. 각 의원의 점수 재계산
-            const recalculatedMembers = originalMemberData.map((member, index) => {
-                const newScore = calculateMemberScore(member, weightSyncState.currentWeights, bounds);
-                
-                return {
-                    ...member,
-                    calculatedScore: newScore,
-                    rank: 0, // 임시값, 나중에 재정렬 후 계산
-                    scoreSource: 'client_calculated',
-                    lastUpdated: new Date().toISOString(),
-                    weightApplied: true
-                };
-            });
-            
-            // 3. 점수 기준으로 정렬하여 순위 부여
-            recalculatedMembers.sort((a, b) => b.calculatedScore - a.calculatedScore);
-            recalculatedMembers.forEach((member, index) => {
-                member.rank = index + 1;
-            });
-            
-            // 4. filteredMembers 업데이트 (🔍 중요: 원본 데이터 참조 유지)
-            filteredMembers = recalculatedMembers;
-            
-            // 5. 업데이트 정보 표시
-            showScoreUpdateInfo(recalculatedMembers.length);
-            
-            console.log('[RankMember] ✅ 의원 점수 재계산 완료');
-            
-        } catch (error) {
-            console.error('[RankMember] ❌ 의원 점수 재계산 실패:', error);
-            throw error;
-        }
-    }
-
-    // === 🧮 정규화 기준값 계산 ===
-    function calculateNormalizationBounds(memberData) {
-        const bounds = {};
-        
-        Object.values(WEIGHT_CALCULATOR.FIELD_MAPPING).forEach(field => {
-            const values = memberData
-                .map(member => getFieldValue(member, field))
-                .filter(val => !isNaN(val) && val !== null && val !== undefined);
-            
-            if (values.length > 0) {
-                bounds[field] = {
-                    min: Math.min(...values),
-                    max: Math.max(...values)
-                };
+            // 원본 데이터로 복원
+            if (originalMemberData.length > 0) {
+                filteredMembers = [...originalMemberData];
+                applyCurrentFiltersAndSort();
+                renderTable();
+                renderPagination();
             } else {
-                bounds[field] = WEIGHT_CALCULATOR.normalizationBounds[field] || { min: 0, max: 100 };
+                // 원본 데이터가 없으면 API에서 다시 로드
+                await loadAllData();
             }
             
-            // 최대값과 최소값이 같으면 범위를 1로 설정 (0으로 나누기 방지)
-            if (bounds[field].max === bounds[field].min) {
-                bounds[field].max = bounds[field].min + 1;
-            }
-        });
-        
-        console.log('[RankMember] 📊 정규화 기준값:', bounds);
-        return bounds;
-    }
-
-    // === 🧮 개별 의원 점수 계산 ===
-    function calculateMemberScore(member, weights, bounds) {
-        let totalScore = 0;
-        let totalWeight = 0;
-        
-        Object.entries(weights).forEach(([weightLabel, weightValue]) => {
-            const fieldName = WEIGHT_CALCULATOR.FIELD_MAPPING[weightLabel];
+            updateConnectionStatus();
+            showDataUpdateNotification('✅ 원본 API 데이터로 복원되었습니다!', 'success', 3000);
             
-            if (fieldName && bounds[fieldName]) {
-                const rawValue = getFieldValue(member, fieldName);
-                const normalizedValue = normalizeValue(rawValue, bounds[fieldName]);
-                const weightedValue = normalizedValue * weightValue;
-                
-                totalScore += weightedValue;
-                totalWeight += weightValue;
-                
-                // 디버그 로그 (처음 몇 개만)
-                if (member.name === originalMemberData[0]?.name) {
-                    console.log(`[RankMember] 📊 ${member.name} - ${weightLabel}: raw=${rawValue}, norm=${normalizedValue.toFixed(3)}, weight=${weightValue}, weighted=${weightedValue.toFixed(3)}`);
-                }
-            }
-        });
-        
-        // 0-100 범위로 변환
-        const finalScore = totalWeight > 0 ? (totalScore / totalWeight) * 100 : 0;
-        
-        return Math.round(finalScore * 10) / 10; // 소수점 첫째자리까지
-    }
-
-    // === 🔧 유틸리티: 필드값 추출 ===
-    function getFieldValue(member, fieldName) {
-        // 다양한 필드명 매핑 시도
-        const possibleFields = [
-            fieldName,
-            // 성과 데이터에서
-            member._performance?.[fieldName],
-            // 랭킹 데이터에서
-            member._ranking?.[fieldName],
-            // 직접 필드에서
-            member[fieldName],
-            // 다른 필드명 변형들
-            member[fieldName.replace('_', '')],
-            member[fieldName.toUpperCase()],
-            member[fieldName.toLowerCase()]
-        ];
-        
-        for (const field of possibleFields) {
-            if (field !== undefined && field !== null && !isNaN(parseFloat(field))) {
-                return parseFloat(field);
-            }
-        }
-        
-        // 특별한 경우 처리
-        switch (fieldName) {
-            case 'attendance_rate':
-                return parseFloat(member.attendanceRate || member.출석률 || 85);
-            case 'bill_pass_sum':
-                return parseInt(member.billPassSum || member.본회의가결 || 0);
-            case 'petition_sum':
-                return parseInt(member.petitionSum || member.청원수 || 0);
-            case 'petition_pass_sum':
-                return parseInt(member.petitionPassSum || member.청원가결 || 0);
-            case 'committee_leader_count':
-                return parseInt(member.chairmanCount || member.위원장수 || 0);
-            case 'committee_secretary_count':
-                return parseInt(member.secretaryCount || member.간사수 || 0);
-            case 'invalid_vote_ratio':
-                return parseFloat(member.invalidVoteRatio || member.무효표비율 || 2);
-            case 'vote_match_ratio':
-                return parseFloat(member.voteMatchRatio || member.표결일치율 || 85);
-            case 'vote_mismatch_ratio':
-                return parseFloat(member.voteMismatchRatio || member.표결불일치율 || 15);
-            default:
-                return 0;
+        } catch (error) {
+            console.error('[RankMember] ❌ 데이터 리셋 실패:', error);
+            showDataUpdateNotification('원본 데이터 복원에 실패했습니다', 'error');
         }
     }
 
-    // === 🧮 값 정규화 (0-1 범위로) ===
-    function normalizeValue(value, bounds) {
-        if (isNaN(value) || bounds.max === bounds.min) {
-            return 0;
-        }
-        
-        const normalized = (value - bounds.min) / (bounds.max - bounds.min);
-        return Math.max(0, Math.min(1, normalized)); // 0-1 범위로 제한
-    }
-
-    // === 📊 점수 업데이트 정보 표시 ===
-    function showScoreUpdateInfo(updatedCount) {
+    // === 📊 데이터 업데이트 정보 표시 ===
+    function showCalculatedDataInfo() {
         try {
-            let infoElement = document.getElementById('member-score-update-info');
+            let infoElement = document.getElementById('member-calculated-data-info');
             if (!infoElement) {
                 infoElement = document.createElement('div');
-                infoElement.id = 'member-score-update-info';
+                infoElement.id = 'member-calculated-data-info';
                 infoElement.style.cssText = `
                     margin: 10px 0; padding: 12px 18px; 
-                    background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+                    background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%);
                     color: white; border-radius: 10px; font-size: 14px; text-align: center;
-                    box-shadow: 0 4px 12px rgba(16, 185, 129, 0.25); 
+                    box-shadow: 0 4px 12px rgba(139, 92, 246, 0.25); 
                     animation: slideInMember 0.6s ease-out;
                 `;
                 
@@ -512,24 +317,28 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
             }
             
-            const weightInfo = weightSyncState.currentWeights ? 
-                `(${Object.keys(weightSyncState.currentWeights).length}개 가중치 적용)` : '';
+            const weightInfo = dataReceiveState.appliedWeights ? 
+                `(${Object.keys(dataReceiveState.appliedWeights).length}개 가중치 적용)` : '';
             
             const searchInfo = searchQuery ? 
                 ` | 검색: "${searchQuery}"` : '';
             
+            const timeInfo = dataReceiveState.calculationTimestamp ? 
+                new Date(dataReceiveState.calculationTimestamp).toLocaleTimeString('ko-KR') : 
+                new Date().toLocaleTimeString('ko-KR');
+            
             infoElement.innerHTML = `
                 <div style="display: flex; justify-content: center; align-items: center; gap: 12px; flex-wrap: wrap;">
-                    <span style="font-size: 18px;">👤</span>
-                    <span><strong>${updatedCount}명</strong>의 의원 점수가 클라이언트에서 재계산되었습니다! ${weightInfo}${searchInfo}</span>
-                    <span style="font-size: 11px; opacity: 0.9;">${new Date().toLocaleTimeString('ko-KR')}</span>
+                    <span style="font-size: 18px;">📡</span>
+                    <span><strong>${calculatedMemberData.length}명</strong>의 의원이 API 계산 데이터로 업데이트되었습니다! ${weightInfo}${searchInfo}</span>
+                    <span style="font-size: 11px; opacity: 0.9;">${timeInfo}</span>
                 </div>
             `;
             
             // 애니메이션 스타일 추가
-            if (!document.getElementById('member-score-update-styles')) {
+            if (!document.getElementById('member-calculated-data-styles')) {
                 const style = document.createElement('style');
-                style.id = 'member-score-update-styles';
+                style.id = 'member-calculated-data-styles';
                 style.textContent = `
                     @keyframes slideInMember {
                         from { opacity: 0; transform: translateY(-12px) scale(0.95); }
@@ -549,21 +358,21 @@ document.addEventListener('DOMContentLoaded', function() {
             }, 8000);
             
         } catch (error) {
-            console.warn('[RankMember] 점수 업데이트 정보 표시 실패:', error);
+            console.warn('[RankMember] 계산 데이터 정보 표시 실패:', error);
         }
     }
 
-    // === 🔔 가중치 업데이트 전용 알림 시스템 ===
-    function showWeightUpdateNotification(message, type = 'info', duration = 4000) {
+    // === 🔔 데이터 업데이트 전용 알림 시스템 ===
+    function showDataUpdateNotification(message, type = 'info', duration = 4000) {
         try {
-            // 기존 가중치 알림 제거
-            const existingNotification = document.querySelector('.member-weight-update-notification');
+            // 기존 알림 제거
+            const existingNotification = document.querySelector('.member-data-update-notification');
             if (existingNotification) {
                 existingNotification.remove();
             }
             
             const notification = document.createElement('div');
-            notification.className = 'member-weight-update-notification';
+            notification.className = 'member-data-update-notification';
             notification.style.cssText = `
                 position: fixed; top: 20px; left: 50%; transform: translateX(-50%);
                 padding: 14px 25px; border-radius: 10px; z-index: 10001; font-size: 14px;
@@ -574,13 +383,13 @@ document.addEventListener('DOMContentLoaded', function() {
                 background: ${type === 'success' ? 'linear-gradient(135deg, #10b981 0%, #059669 100%)' : 
                            type === 'error' ? 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)' : 
                            type === 'warning' ? 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)' : 
-                           'linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%)'};
+                           'linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%)'};
                 color: white;
             `;
             
             notification.innerHTML = `
                 <div style="display: flex; align-items: center; justify-content: center; gap: 10px;">
-                    <span style="font-size: 16px;">${type === 'success' ? '✅' : type === 'error' ? '❌' : type === 'warning' ? '⚠️' : 'ℹ️'}</span>
+                    <span style="font-size: 16px;">${type === 'success' ? '✅' : type === 'error' ? '❌' : type === 'warning' ? '⚠️' : '📡'}</span>
                     <span>${message}</span>
                     <span style="font-size: 16px;">👤</span>
                 </div>
@@ -604,41 +413,39 @@ document.addEventListener('DOMContentLoaded', function() {
             }, duration);
             
         } catch (error) {
-            console.log(`[RankMember 가중치 알림] ${message} (${type})`);
+            console.log(`[RankMember 데이터 알림] ${message} (${type})`);
         }
     }
 
     // === 🎨 연결 상태 표시 업데이트 ===
     function updateConnectionStatus() {
         try {
-            let statusElement = document.getElementById('member-weight-sync-status');
+            let statusElement = document.getElementById('member-data-sync-status');
             if (!statusElement) {
                 statusElement = document.createElement('div');
-                statusElement.id = 'member-weight-sync-status';
+                statusElement.id = 'member-data-sync-status';
                 statusElement.style.cssText = `
                     position: fixed; top: 10px; right: 10px; z-index: 1000;
-                    padding: 8px 12px; background: rgba(59, 130, 246, 0.9); color: white;
-                    border-radius: 20px; font-size: 11px; font-weight: 500;
-                    box-shadow: 0 2px 8px rgba(0,0,0,0.1); backdrop-filter: blur(4px);
-                    transition: all 0.3s ease; font-family: 'Blinker', sans-serif;
+                    padding: 8px 12px; color: white; border-radius: 20px; 
+                    font-size: 11px; font-weight: 500; backdrop-filter: blur(4px);
+                    box-shadow: 0 2px 8px rgba(0,0,0,0.1); transition: all 0.3s ease; 
+                    font-family: 'Blinker', sans-serif;
                 `;
                 document.body.appendChild(statusElement);
             }
             
-            const hasWeights = weightSyncState.currentWeights !== null;
-            
-            if (weightSyncState.percentPageConnected && hasWeights) {
+            if (dataReceiveState.isUsingCalculatedData && dataReceiveState.percentPageConnected) {
+                statusElement.style.background = 'rgba(139, 92, 246, 0.9)';
+                statusElement.innerHTML = '📡 API 계산 데이터 적용됨';
+            } else if (dataReceiveState.percentPageConnected) {
                 statusElement.style.background = 'rgba(16, 185, 129, 0.9)';
-                statusElement.innerHTML = '🔗 의원 가중치 연동됨';
-            } else if (hasWeights) {
-                statusElement.style.background = 'rgba(245, 158, 11, 0.9)';
-                statusElement.innerHTML = '⚖️ 가중치 적용됨';
-            } else if (weightSyncState.percentPageConnected) {
+                statusElement.innerHTML = '🔗 percent 페이지 연결됨';
+            } else if (originalMemberData.length > 0) {
                 statusElement.style.background = 'rgba(59, 130, 246, 0.9)';
-                statusElement.innerHTML = '⏳ 가중치 대기중';
+                statusElement.innerHTML = '📊 원본 API 데이터';
             } else {
                 statusElement.style.background = 'rgba(107, 114, 128, 0.9)';
-                statusElement.innerHTML = '📴 기본 순위';
+                statusElement.innerHTML = '📴 기본 데이터';
             }
             
         } catch (error) {
@@ -721,157 +528,8 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
 
-    // === 🔍 검색어 클리어 ===
-    function clearSearch() {
-        try {
-            if (elements.searchInput) {
-                elements.searchInput.value = '';
-            }
-            
-            searchQuery = '';
-            currentPage = 1;
-            
-            // 검색 결과 정보 숨김
-            hideSearchResults();
-            
-            // 클리어 버튼 숨김
-            if (elements.searchClearButton) {
-                elements.searchClearButton.style.display = 'none';
-            }
-            
-            // 필터 및 정렬 적용
-            applyCurrentFiltersAndSort();
-            renderTable();
-            
-            console.log('[RankMember] 🔍 검색어 클리어 완료');
-            
-        } catch (error) {
-            console.error('[RankMember] 검색어 클리어 실패:', error);
-        }
-    }
-
-    // === 🔍 검색 결과 정보 표시 ===
-    function showSearchInfo() {
-        try {
-            if (!elements.searchResults || !searchQuery) {
-                hideSearchResults();
-                return;
-            }
-            
-            const results = searchState.searchResults;
-            const query = searchQuery;
-            
-            elements.searchResults.innerHTML = `
-                <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
-                    <div>
-                        🔍 "<strong>${escapeHtml(query)}</strong>" 검색결과: <strong>${results.total}명</strong>
-                        ${results.exact > 0 ? `(정확일치 ${results.exact}명)` : ''}
-                        ${results.byName > 0 ? `• 이름 ${results.byName}명` : ''}
-                        ${results.byParty > 0 ? `• 정당 ${results.byParty}명` : ''}
-                    </div>
-                    <div style="font-size: 11px; opacity: 0.7;">
-                        ${new Date().toLocaleTimeString('ko-KR')}
-                    </div>
-                </div>
-            `;
-            
-            elements.searchResults.style.display = 'block';
-            
-            // 클리어 버튼 표시
-            if (elements.searchClearButton) {
-                elements.searchClearButton.style.display = 'block';
-            }
-            
-        } catch (error) {
-            console.warn('[RankMember] 검색 결과 정보 표시 실패:', error);
-        }
-    }
-
-    // === 🔍 검색 결과 정보 숨김 ===
-    function hideSearchResults() {
-        try {
-            if (elements.searchResults) {
-                elements.searchResults.style.display = 'none';
-            }
-        } catch (error) {
-            console.warn('[RankMember] 검색 결과 정보 숨김 실패:', error);
-        }
-    }
-
-    // === 🔍 검색 결과 분석 ===
-    function updateSearchResults() {
-        try {
-            const query = searchQuery.toLowerCase().trim();
-            if (!query) {
-                searchState.searchResults = { total: 0, byName: 0, byParty: 0, exact: 0, partial: 0 };
-                return;
-            }
-            
-            let exactMatches = 0;
-            let partialMatches = 0;
-            let nameMatches = 0;
-            let partyMatches = 0;
-            
-            filteredMembers.forEach(member => {
-                const name = member.name.toLowerCase();
-                const party = member.party.toLowerCase();
-                
-                const nameExact = name === query;
-                const partyExact = party === query;
-                const namePartial = name.includes(query);
-                const partyPartial = party.includes(query);
-                
-                if (nameExact || partyExact) {
-                    exactMatches++;
-                }
-                
-                if (namePartial || partyPartial) {
-                    partialMatches++;
-                    
-                    if (namePartial) nameMatches++;
-                    if (partyPartial) partyMatches++;
-                }
-            });
-            
-            searchState.searchResults = {
-                total: filteredMembers.length,
-                byName: nameMatches,
-                byParty: partyMatches,
-                exact: exactMatches,
-                partial: partialMatches
-            };
-            
-            searchState.lastSearchTime = new Date();
-            
-        } catch (error) {
-            console.warn('[RankMember] 검색 결과 분석 실패:', error);
-        }
-    }
-
-    // === 🔍 텍스트 하이라이팅 ===
-    function highlightText(text, query) {
-        if (!query || !searchState.searchHighlight) return escapeHtml(text);
-        
-        try {
-            const escapedText = escapeHtml(text);
-            const escapedQuery = escapeHtml(query);
-            const regex = new RegExp(`(${escapedQuery})`, 'gi');
-            
-            return escapedText.replace(regex, '<mark style="background: #fbbf24; padding: 1px 2px; border-radius: 2px;">$1</mark>');
-        } catch (error) {
-            return escapeHtml(text);
-        }
-    }
-
-    // === 🔧 HTML 이스케이프 ===
-    function escapeHtml(text) {
-        const div = document.createElement('div');
-        div.textContent = text;
-        return div.innerHTML;
-    }
-
     // 로딩 상태 관리
-    function setLoadingState(loading, message = '국회의원 데이터를 불러오는 중...') {
+    function setLoadingState(loading, message = '의원 데이터를 처리하는 중...') {
         isLoading = loading;
         
         if (elements.memberTableBody) {
@@ -904,161 +562,297 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
 
-    // === 🚀 기존 API 데이터 로드 함수 (rank_party.js 스타일로 통합) ===
-    async function loadAllData() {
-        try {
-            setLoadingState(true);
-            console.log('[RankMember] 🚀 데이터 로드 시작...');
-            
-            if (!window.APIService || !window.APIService._isReady) {
-                throw new Error('API 서비스가 준비되지 않았습니다.');
-            }
-            
-            const results = await Promise.allSettled([
-                window.APIService.getAllMembers(),
-                window.APIService.getMemberRanking(),
-                window.APIService.getMemberPerformance()
-            ]);
-            
-            const [membersResult, rankingResult, performanceResult] = results;
-            
-            if (membersResult.status === 'fulfilled') {
-                memberList = membersResult.value || [];
-                console.log(`[RankMember] ✅ 국회의원 명단: ${memberList.length}명`);
-            } else {
-                console.error('[RankMember] ❌ 국회의원 명단 로드 실패:', membersResult.reason);
-                throw new Error('국회의원 명단을 불러올 수 없습니다.');
-            }
-            
-            if (rankingResult.status === 'fulfilled') {
-                memberRanking = rankingResult.value || [];
-                console.log(`[RankMember] ✅ 랭킹 데이터: ${memberRanking.length}개`);
-            } else {
-                console.warn('[RankMember] ⚠️ 랭킹 데이터 로드 실패:', rankingResult.reason);
-                memberRanking = [];
-            }
-
-            // 성과 데이터도 로드 (가중치 계산에 필요한 상세 정보)
-            let memberPerformanceData = [];
-            if (performanceResult.status === 'fulfilled') {
-                memberPerformanceData = performanceResult.value || [];
-                console.log(`[RankMember] ✅ 성과 데이터: ${memberPerformanceData.length}개`);
-            }
-            
-            // 🎯 원본 데이터 병합 및 보관
-            mergeAndStoreOriginalData(memberPerformanceData);
-            
-            // 가중치가 있으면 즉시 재계산, 없으면 기본 처리
-            if (weightSyncState.currentWeights) {
-                await recalculateMemberScores();
-            } else {
-                mergeAndProcessData();
-            }
-            
-            console.log('[RankMember] ✅ 데이터 로드 완료');
-            return true;
-            
-        } catch (error) {
-            console.error('[RankMember] ❌ 데이터 로드 실패:', error);
-            hasError = true;
-            showNotification('데이터 로드에 실패했습니다.', 'error');
-            
-            memberList = getFallbackData();
-            memberRanking = [];
-            mergeAndProcessData();
-            
-            throw error;
-        } finally {
-            setLoadingState(false);
+// === 🚀 기존 API 데이터 로드 함수 (원본 데이터용) - 수정된 버전 ===
+async function loadAllData() {
+    try {
+        setLoadingState(true);
+        console.log('[RankMember] 🚀 원본 API 데이터 로드 시작...');
+        
+        if (!window.APIService || !window.APIService._isReady) {
+            throw new Error('API 서비스가 준비되지 않았습니다.');
         }
-    }
+        
+        const results = await Promise.allSettled([
+            window.APIService.getAllMembers(),
+            window.APIService.getMemberRanking(),
+            window.APIService.getMemberPerformance()
+        ]);
+        
+        const [membersResult, rankingResult, performanceResult] = results;
+        
+        if (membersResult.status === 'fulfilled') {
+            memberList = membersResult.value || [];
+            console.log(`[RankMember] ✅ 국회의원 명단: ${memberList.length}명`);
+        } else {
+            console.error('[RankMember] ❌ 국회의원 명단 로드 실패:', membersResult.reason);
+            throw new Error('국회의원 명단을 불러올 수 없습니다.');
+        }
+        
+        let memberRanking = [];
+        if (rankingResult.status === 'fulfilled') {
+            memberRanking = rankingResult.value || [];
+            console.log(`[RankMember] ✅ 랭킹 데이터: ${memberRanking.length}개`);
+        } else {
+            console.warn('[RankMember] ⚠️ 랭킹 데이터 로드 실패:', rankingResult.reason);
+        }
 
-    // === 🎯 원본 데이터 병합 및 저장 ===
-    function mergeAndStoreOriginalData(performanceData) {
-        try {
-            console.log('[RankMember] 📊 원본 데이터 병합 중...');
+        // 🔧 성과 데이터 로드 - 수정된 버전
+        let memberPerformanceData = [];
+        if (performanceResult.status === 'fulfilled') {
+            const rawPerformanceData = performanceResult.value;
             
-            originalMemberData = memberList.map((member, index) => {
-                const memberName = member.name || '';
-                const ranking = memberRanking.find(r => r.HG_NM === memberName);
-                const performance = performanceData.find(p => p.lawmaker_name === memberName);
+            // 📊 데이터 구조 확인 및 정규화
+            if (Array.isArray(rawPerformanceData)) {
+                memberPerformanceData = rawPerformanceData;
+            } else if (rawPerformanceData && typeof rawPerformanceData === 'object') {
+                // 객체 형태로 반환된 경우 (예: {ranking: [...], data: [...]} 등)
+                if (rawPerformanceData.ranking && Array.isArray(rawPerformanceData.ranking)) {
+                    memberPerformanceData = rawPerformanceData.ranking;
+                } else if (rawPerformanceData.data && Array.isArray(rawPerformanceData.data)) {
+                    memberPerformanceData = rawPerformanceData.data;
+                } else if (rawPerformanceData.results && Array.isArray(rawPerformanceData.results)) {
+                    memberPerformanceData = rawPerformanceData.results;
+                } else {
+                    // 객체의 모든 값 중 배열인 것을 찾아서 사용
+                    const arrayValues = Object.values(rawPerformanceData).filter(val => Array.isArray(val));
+                    if (arrayValues.length > 0) {
+                        memberPerformanceData = arrayValues[0];
+                    } else {
+                        console.warn('[RankMember] ⚠️ 성과 데이터에서 배열을 찾을 수 없습니다:', rawPerformanceData);
+                        memberPerformanceData = [];
+                    }
+                }
+            } else {
+                console.warn('[RankMember] ⚠️ 예상하지 못한 성과 데이터 형태:', rawPerformanceData);
+                memberPerformanceData = [];
+            }
+            
+            console.log(`[RankMember] ✅ 성과 데이터: ${memberPerformanceData.length}개`);
+            
+            // 🔍 데이터 구조 확인 로깅
+            if (memberPerformanceData.length > 0) {
+                console.log('[RankMember] 📋 성과 데이터 샘플:', memberPerformanceData[0]);
+            }
+            
+        } else {
+            console.warn('[RankMember] ⚠️ 성과 데이터 로드 실패:', performanceResult.reason);
+            memberPerformanceData = [];
+        }
+        
+        // 🎯 원본 데이터 병합 및 보관
+        mergeAndStoreOriginalData(memberRanking, memberPerformanceData);
+        
+        // 계산된 데이터가 있으면 그것을 사용, 없으면 원본 데이터 사용
+        if (dataReceiveState.isUsingCalculatedData && calculatedMemberData.length > 0) {
+            filteredMembers = [...calculatedMemberData];
+        } else {
+            filteredMembers = [...originalMemberData];
+        }
+        
+        applyCurrentFiltersAndSort();
+        renderTable();
+        renderPagination();
+        
+        console.log('[RankMember] ✅ 원본 API 데이터 로드 완료');
+        return true;
+        
+    } catch (error) {
+        console.error('[RankMember] ❌ 데이터 로드 실패:', error);
+        hasError = true;
+        showNotification('데이터 로드에 실패했습니다.', 'error');
+        
+        memberList = getFallbackData();
+        mergeAndStoreOriginalData([], []);
+        
+        throw error;
+    } finally {
+        setLoadingState(false);
+    }
+}
+
+// === 🎯 원본 데이터 병합 및 저장 - 수정된 버전 ===
+function mergeAndStoreOriginalData(memberRanking, performanceData) {
+    try {
+        console.log('[RankMember] 📊 원본 데이터 병합 중...');
+        
+        // 🔧 데이터 유효성 검증
+        const validMemberRanking = Array.isArray(memberRanking) ? memberRanking : [];
+        const validPerformanceData = Array.isArray(performanceData) ? performanceData : [];
+        
+        console.log(`[RankMember] 📋 병합 대상 - 랭킹: ${validMemberRanking.length}개, 성과: ${validPerformanceData.length}개`);
+        
+        originalMemberData = memberList.map((member, index) => {
+            const memberName = member.name || '';
+            
+            // 🔍 랭킹 데이터 검색 (방어적 프로그래밍)
+            let ranking = null;
+            try {
+                ranking = validMemberRanking.find(r => r && r.HG_NM === memberName);
+            } catch (error) {
+                console.warn(`[RankMember] 랭킹 데이터 검색 실패 (${memberName}):`, error);
+            }
+            
+            // 🔍 성과 데이터 검색 (방어적 프로그래밍)
+            let performance = null;
+            try {
+                performance = validPerformanceData.find(p => {
+                    // 다양한 필드명 대응
+                    return p && (
+                        p.lawmaker_name === memberName ||
+                        p.name === memberName ||
+                        p.member_name === memberName ||
+                        p.HG_NM === memberName
+                    );
+                });
+            } catch (error) {
+                console.warn(`[RankMember] 성과 데이터 검색 실패 (${memberName}):`, error);
+            }
+            
+            return {
+                // 기본 정보
+                rank: ranking ? parseInt(ranking.총점_순위) || (index + 1) : (index + 1),
+                name: memberName,
+                party: member.party || '정당 정보 없음',
+                contact: member.phone || '',
+                homepage: member.homepage || '',
+                originalIndex: index,
                 
-                return {
-                    // 기본 정보
-                    rank: ranking ? parseInt(ranking.총점_순위) || (index + 1) : (index + 1),
-                    name: memberName,
-                    party: member.party || '정당 정보 없음',
-                    contact: member.phone || '',
-                    homepage: member.homepage || '',
-                    originalIndex: index,
-                    
-                    // 🎯 가중치 계산에 필요한 상세 데이터
-                    attendanceRate: parseFloat(performance?.attendance_rate || ranking?.출석률 || 85),
-                    billPassSum: parseInt(performance?.bill_pass_sum || ranking?.본회의가결 || 0),
-                    petitionSum: parseInt(performance?.petition_sum || ranking?.청원수 || 0),
-                    petitionPassSum: parseInt(performance?.petition_pass_sum || ranking?.청원가결 || 0),
-                    chairmanCount: parseInt(performance?.committee_leader_count || ranking?.위원장수 || 0),
-                    secretaryCount: parseInt(performance?.committee_secretary_count || ranking?.간사수 || 0),
-                    invalidVoteRatio: parseFloat(performance?.invalid_vote_ratio || ranking?.무효표비율 || 2),
-                    voteMatchRatio: parseFloat(performance?.vote_match_ratio || ranking?.표결일치율 || 85),
-                    voteMismatchRatio: parseFloat(performance?.vote_mismatch_ratio || ranking?.표결불일치율 || 15),
-                    
-                    // 원본 데이터 참조
-                    _member: member,
-                    _ranking: ranking,
-                    _performance: performance
-                };
-            });
-            
-            console.log(`[RankMember] ✅ 원본 데이터 병합 완료: ${originalMemberData.length}명`);
-            
-        } catch (error) {
-            console.error('[RankMember] ❌ 원본 데이터 병합 실패:', error);
-            originalMemberData = [];
-        }
+                // 원본 점수 정보
+                originalScore: ranking ? parseFloat(ranking.총점 || 0) : 0,
+                scoreSource: 'api_original',
+                
+                // 성과 데이터 추가 정보 (있는 경우)
+                performanceScore: performance ? parseFloat(performance.total_score || performance.총점 || 0) : null,
+                attendanceScore: performance ? parseFloat(performance.attendance_score || 0) : null,
+                
+                // 원본 데이터 참조
+                _member: member,
+                _ranking: ranking,
+                _performance: performance
+            };
+        });
+        
+        console.log(`[RankMember] ✅ 원본 데이터 병합 완료: ${originalMemberData.length}명`);
+        
+        // 🔍 병합된 데이터 품질 확인
+        const withRanking = originalMemberData.filter(m => m._ranking).length;
+        const withPerformance = originalMemberData.filter(m => m._performance).length;
+        
+        console.log(`[RankMember] 📊 데이터 품질 - 랭킹 연결: ${withRanking}명, 성과 연결: ${withPerformance}명`);
+        
+    } catch (error) {
+        console.error('[RankMember] ❌ 원본 데이터 병합 실패:', error);
+        
+        // 📋 최소한의 기본 데이터라도 생성
+        originalMemberData = memberList.map((member, index) => ({
+            rank: index + 1,
+            name: member.name || '',
+            party: member.party || '정당 정보 없음',
+            contact: member.phone || '',
+            homepage: member.homepage || '',
+            originalIndex: index,
+            originalScore: 0,
+            scoreSource: 'fallback',
+            _member: member,
+            _ranking: null,
+            _performance: null
+        }));
+        
+        console.log(`[RankMember] 🔧 폴백 데이터 생성: ${originalMemberData.length}명`);
     }
+}
 
-    // 기존 데이터 병합 및 처리 (가중치 없을 때 사용)
-    function mergeAndProcessData() {
+// === 🔧 API 데이터 구조 디버깅 함수 추가 ===
+function debugApiDataStructure() {
+    console.log('[RankMember] 🔍 API 데이터 구조 디버깅:');
+    
+    if (memberList.length > 0) {
+        console.log('👥 memberList 샘플:', memberList[0]);
+    }
+    
+    if (originalMemberData.length > 0) {
+        console.log('📊 originalMemberData 샘플:', originalMemberData[0]);
+    }
+    
+    console.log('📈 데이터 상태:', {
+        memberList: memberList.length,
+        originalMemberData: originalMemberData.length,
+        calculatedMemberData: calculatedMemberData.length,
+        filteredMembers: filteredMembers.length
+    });
+}
+
+// 디버그 함수를 전역으로 등록
+window.debugRankMemberData = debugApiDataStructure;
+
+    // === 🔍 검색 상태 복원 ===
+    async function restoreSearchState(searchState) {
         try {
-            if (originalMemberData.length > 0) {
-                // 원본 데이터가 있으면 그대로 사용
-                filteredMembers = [...originalMemberData];
-            } else {
-                // 원본 데이터가 없으면 기본 처리
-                filteredMembers = memberList.map((member, index) => {
-                    const memberName = member.name || '';
-                    const ranking = memberRanking.find(r => r.HG_NM === memberName);
-                    
-                    return {
-                        rank: ranking ? parseInt(ranking.총점_순위) || (index + 1) : (index + 1),
-                        name: memberName,
-                        party: member.party || '정당 정보 없음',
-                        contact: member.phone || '',
-                        homepage: member.homepage || '',
-                        originalIndex: index
-                    };
+            console.log('[RankMember] 🔍 검색 상태 복원:', searchState);
+            
+            // 검색어 복원
+            if (searchState.query) {
+                searchQuery = searchState.query;
+                if (elements.searchInput) {
+                    elements.searchInput.value = searchState.query;
+                }
+            }
+            
+            // 필터 복원
+            currentFilter = searchState.filter;
+            if (elements.filterButtons) {
+                elements.filterButtons.forEach(btn => {
+                    btn.classList.toggle('active', btn.dataset.filter === searchState.filter);
                 });
             }
             
-            applyCurrentFiltersAndSort();
-            renderTable();
+            // 정렬 복원
+            currentSort = searchState.sort;
+            if (elements.sortDropdown) {
+                elements.sortDropdown.querySelectorAll('.dropdown-item').forEach(item => {
+                    item.classList.toggle('active', item.dataset.sort === searchState.sort);
+                });
+            }
             
-            console.log(`[RankMember] 📊 기본 데이터 처리 완료: ${filteredMembers.length}명`);
+            // 필터 및 검색 적용
+            applyCurrentFiltersAndSort();
+            
+            // 페이지 복원 (데이터 범위 내에서)
+            const maxPage = Math.ceil(filteredMembers.length / itemsPerPage);
+            currentPage = Math.min(searchState.page, maxPage) || 1;
+            
+            // UI 업데이트
+            renderTable();
+            renderPagination();
+            
+            // 검색 결과 업데이트
+            if (searchQuery) {
+                updateSearchResults();
+                showSearchInfo();
+            }
+            
+            // 계산된 데이터 정보 표시
+            if (dataReceiveState.isUsingCalculatedData) {
+                showCalculatedDataInfo();
+            }
+            
+            console.log('[RankMember] ✅ 검색 상태 복원 완료');
             
         } catch (error) {
-            console.error('[RankMember] ❌ 데이터 처리 실패:', error);
-            filteredMembers = [];
-            renderTable();
+            console.error('[RankMember] ❌ 검색 상태 복원 실패:', error);
         }
     }
 
     // === 🔄 필터 및 정렬 적용 (향상된 검색 포함) ===
     function applyCurrentFiltersAndSort() {
-        // 원본 데이터에서 시작
-        let workingData = [...originalMemberData];
+        // 현재 사용할 데이터 결정 (계산된 데이터 우선)
+        let workingData = [];
         
-        if (workingData.length === 0) {
+        if (dataReceiveState.isUsingCalculatedData && calculatedMemberData.length > 0) {
+            workingData = [...calculatedMemberData];
+        } else if (originalMemberData.length > 0) {
+            workingData = [...originalMemberData];
+        } else {
             workingData = [...memberList.map((member, index) => ({
                 rank: index + 1,
                 name: member.name || '',
@@ -1116,31 +910,57 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
-    // 폴백 데이터
-    function getFallbackData() {
-        return [
-            {
-                name: '나경원',
-                party: '국민의힘',
-                phone: '02-788-2721',
-                homepage: 'https://www.assembly.go.kr'
-            },
-            {
-                name: '이재명',
-                party: '더불어민주당',
-                phone: '02-788-2922',
-                homepage: 'https://www.assembly.go.kr'
-            },
-            {
-                name: '조국',
-                party: '조국혁신당',
-                phone: '02-788-2923',
-                homepage: 'https://www.assembly.go.kr'
+    // === 🔍 검색 결과 분석 ===
+    function updateSearchResults() {
+        try {
+            const query = searchQuery.toLowerCase().trim();
+            if (!query) {
+                searchState.searchResults = { total: 0, byName: 0, byParty: 0, exact: 0, partial: 0 };
+                return;
             }
-        ];
+            
+            let exactMatches = 0;
+            let partialMatches = 0;
+            let nameMatches = 0;
+            let partyMatches = 0;
+            
+            filteredMembers.forEach(member => {
+                const name = member.name.toLowerCase();
+                const party = member.party.toLowerCase();
+                
+                const nameExact = name === query;
+                const partyExact = party === query;
+                const namePartial = name.includes(query);
+                const partyPartial = party.includes(query);
+                
+                if (nameExact || partyExact) {
+                    exactMatches++;
+                }
+                
+                if (namePartial || partyPartial) {
+                    partialMatches++;
+                    
+                    if (namePartial) nameMatches++;
+                    if (partyPartial) partyMatches++;
+                }
+            });
+            
+            searchState.searchResults = {
+                total: filteredMembers.length,
+                byName: nameMatches,
+                byParty: partyMatches,
+                exact: exactMatches,
+                partial: partialMatches
+            };
+            
+            searchState.lastSearchTime = new Date();
+            
+        } catch (error) {
+            console.warn('[RankMember] 검색 결과 분석 실패:', error);
+        }
     }
 
-    // === 기존 함수들 (정렬, 필터, 렌더링 등) 유지 ===
+    // === 기존 함수들 계속 유지 (렌더링, 페이지네이션, 검색 등) ===
     function calculatePagination() {
         totalPages = Math.ceil(filteredMembers.length / itemsPerPage);
         
@@ -1183,17 +1003,22 @@ document.addEventListener('DOMContentLoaded', function() {
             <tr>
                 <td class="rank-cell">
                     ${member.rank}
-                    ${member.scoreSource === 'client_calculated' ? 
-                        '<span style="color: #10b981; font-size: 10px; margin-left: 5px;" title="클라이언트 가중치 적용">⚖️</span>' : 
-                        member.weightApplied ? 
-                        '<span style="color: #3b82f6; font-size: 10px; margin-left: 5px;" title="가중치 적용됨">🎯</span>' : ''
+                    ${member.scoreSource === 'api_calculated' ? 
+                        '<span style="color: #8b5cf6; font-size: 10px; margin-left: 5px;" title="API 계산 데이터">📡</span>' : 
+                        member.scoreSource === 'api_original' ? 
+                        '<span style="color: #3b82f6; font-size: 10px; margin-left: 5px;" title="원본 API 데이터">📊</span>' : ''
                     }
                 </td>
                 <td>
                     <a href="percent_member.html?member=${encodeURIComponent(member.name)}" 
                        class="member-name">${highlightText(member.name, searchQuery)}</a>
                     ${member.calculatedScore ? 
-                        `<div style="font-size: 11px; color: #059669; margin-top: 2px;">점수: ${member.calculatedScore}</div>` : ''
+                        `<div style="font-size: 11px; color: #8b5cf6; margin-top: 2px;">
+                            API 계산: ${member.calculatedScore}
+                            ${member.scoreChanged ? ` (원본: ${member.originalScore})` : ''}
+                        </div>` : 
+                        member.originalScore ? 
+                        `<div style="font-size: 11px; color: #059669; margin-top: 2px;">원본: ${member.originalScore}</div>` : ''
                     }
                 </td>
                 <td class="party-name">${highlightText(member.party, searchQuery)}</td>
@@ -1224,7 +1049,130 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
 
-    // === 기존 함수들 (검색, 필터, 페이지네이션 등) 모두 유지 ===
+    // === 🔍 텍스트 하이라이팅 ===
+    function highlightText(text, query) {
+        if (!query || !searchState.searchHighlight) return escapeHtml(text);
+        
+        try {
+            const escapedText = escapeHtml(text);
+            const escapedQuery = escapeHtml(query);
+            const regex = new RegExp(`(${escapedQuery})`, 'gi');
+            
+            return escapedText.replace(regex, '<mark style="background: #fbbf24; padding: 1px 2px; border-radius: 2px;">$1</mark>');
+        } catch (error) {
+            return escapeHtml(text);
+        }
+    }
+
+    // === 🔧 HTML 이스케이프 ===
+    function escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
+
+    // === 기존 함수들 모두 유지 (검색, 페이지네이션, 필터링 등) ===
+    
+    // 폴백 데이터
+    function getFallbackData() {
+        return [
+            {
+                name: '나경원',
+                party: '국민의힘',
+                phone: '02-788-2721',
+                homepage: 'https://www.assembly.go.kr'
+            },
+            {
+                name: '이재명',
+                party: '더불어민주당',
+                phone: '02-788-2922',
+                homepage: 'https://www.assembly.go.kr'
+            },
+            {
+                name: '조국',
+                party: '조국혁신당',
+                phone: '02-788-2923',
+                homepage: 'https://www.assembly.go.kr'
+            }
+        ];
+    }
+
+    // === 🔍 검색 관련 함수들 ===
+    function clearSearch() {
+        try {
+            if (elements.searchInput) {
+                elements.searchInput.value = '';
+            }
+            
+            searchQuery = '';
+            currentPage = 1;
+            
+            // 검색 결과 정보 숨김
+            hideSearchResults();
+            
+            // 클리어 버튼 숨김
+            if (elements.searchClearButton) {
+                elements.searchClearButton.style.display = 'none';
+            }
+            
+            // 필터 및 정렬 적용
+            applyCurrentFiltersAndSort();
+            renderTable();
+            
+            console.log('[RankMember] 🔍 검색어 클리어 완료');
+            
+        } catch (error) {
+            console.error('[RankMember] 검색어 클리어 실패:', error);
+        }
+    }
+
+    function showSearchInfo() {
+        try {
+            if (!elements.searchResults || !searchQuery) {
+                hideSearchResults();
+                return;
+            }
+            
+            const results = searchState.searchResults;
+            const query = searchQuery;
+            
+            elements.searchResults.innerHTML = `
+                <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
+                    <div>
+                        🔍 "<strong>${escapeHtml(query)}</strong>" 검색결과: <strong>${results.total}명</strong>
+                        ${results.exact > 0 ? `(정확일치 ${results.exact}명)` : ''}
+                        ${results.byName > 0 ? `• 이름 ${results.byName}명` : ''}
+                        ${results.byParty > 0 ? `• 정당 ${results.byParty}명` : ''}
+                    </div>
+                    <div style="font-size: 11px; opacity: 0.7;">
+                        ${dataReceiveState.isUsingCalculatedData ? '📡 계산 데이터' : '📊 원본 데이터'} | ${new Date().toLocaleTimeString('ko-KR')}
+                    </div>
+                </div>
+            `;
+            
+            elements.searchResults.style.display = 'block';
+            
+            // 클리어 버튼 표시
+            if (elements.searchClearButton) {
+                elements.searchClearButton.style.display = 'block';
+            }
+            
+        } catch (error) {
+            console.warn('[RankMember] 검색 결과 정보 표시 실패:', error);
+        }
+    }
+
+    function hideSearchResults() {
+        try {
+            if (elements.searchResults) {
+                elements.searchResults.style.display = 'none';
+            }
+        } catch (error) {
+            console.warn('[RankMember] 검색 결과 정보 숨김 실패:', error);
+        }
+    }
+
+    // === 기존 함수들 모두 유지 (페이지네이션, 필터, 정렬 등) ===
     function renderPagination() {
         if (!elements.pagination) return;
         
@@ -1414,7 +1362,7 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
-    // === 🔄 WeightSync 호환 함수들 ===
+    // === 🔄 호환 함수들 ===
     async function refreshMemberRankingData() {
         console.log('[RankMember] 🔄 의원 랭킹 데이터 새로고침...');
         try {
@@ -1429,10 +1377,10 @@ document.addEventListener('DOMContentLoaded', function() {
     // === 🚀 페이지 초기화 ===
     async function initializePage() {
         try {
-            console.log('[RankMember] 🚀 클라이언트 가중치 연동 + 향상된 검색 의원 랭킹 페이지 초기화... (v3.3.0)');
+            console.log('[RankMember] 🚀 API 계산 데이터 수신 의원 랭킹 페이지 초기화... (v4.0.0)');
             
-            // 실시간 연동 시스템 먼저 초기화
-            initializeRealTimeSync();
+            // 실시간 데이터 수신 시스템 먼저 초기화
+            initializeRealTimeDataReceive();
             
             // DOM 요소 초기화
             initializeElements();
@@ -1442,7 +1390,7 @@ document.addEventListener('DOMContentLoaded', function() {
             setupFilters();
             setupSorting();
             
-            // 데이터 로드
+            // 원본 데이터 로드
             await loadAllData();
             
             // 연결 상태 표시 업데이트
@@ -1462,26 +1410,51 @@ document.addEventListener('DOMContentLoaded', function() {
     window.refreshMemberRankingData = refreshMemberRankingData;
     window.refreshMemberDetails = refreshMemberRankingData;
     window.loadMemberData = loadAllData;
-    window.clearSearch = clearSearch; // 전역 함수로 등록
+    window.clearSearch = clearSearch;
 
-    // === 🛠️ 디버그 함수들 (개선된 버전) ===
+    // === 🛠️ 디버그 함수들 ===
     window.memberRankingDebug = {
         getState: () => ({
             memberList,
-            memberRanking,
             originalMemberData,
+            calculatedMemberData,
             filteredMembers,
-            weightSyncState,
+            dataReceiveState,
             searchState,
             currentSort,
             currentPage
         }),
         refreshData: () => refreshMemberRankingData(),
-        recalculateScores: () => recalculateMemberScores(),
-        getCurrentWeights: () => weightSyncState.currentWeights,
-        getOriginalData: () => originalMemberData,
         
-        // 🔍 검색 관련 디버그
+        // 데이터 수신 관련
+        getDataReceiveState: () => dataReceiveState,
+        getOriginalData: () => originalMemberData,
+        getCalculatedData: () => calculatedMemberData,
+        getCurrentData: () => filteredMembers,
+        
+        // 연결 관련
+        recreateChannel: () => {
+            console.log('[RankMember] BroadcastChannel 재생성 시도...');
+            const success = createBroadcastChannel();
+            console.log('[RankMember] 재생성 결과:', success ? '성공' : '실패');
+            return success;
+        },
+        
+        getChannelStatus: () => {
+            return {
+                exists: !!dataReceiveState.realTimeUpdateChannel,
+                type: typeof dataReceiveState.realTimeUpdateChannel,
+                supported: typeof BroadcastChannel !== 'undefined'
+            };
+        },
+        
+        testBroadcast: (testData = { test: true, timestamp: new Date().toISOString() }) => {
+            const success = safeBroadcast(testData);
+            console.log('[RankMember] 테스트 브로드캐스트 결과:', success ? '성공' : '실패');
+            return success;
+        },
+        
+        // 검색 관련
         getSearchState: () => ({
             query: searchQuery,
             results: searchState.searchResults,
@@ -1495,55 +1468,21 @@ document.addEventListener('DOMContentLoaded', function() {
             return searchState.searchResults;
         },
         
-        recreateChannel: () => {
-            console.log('[RankMember] BroadcastChannel 재생성 시도...');
-            const success = createBroadcastChannel();
-            console.log('[RankMember] 재생성 결과:', success ? '성공' : '실패');
-            return success;
-        },
-        
-        getChannelStatus: () => {
-            return {
-                exists: !!weightSyncState.realTimeUpdateChannel,
-                type: typeof weightSyncState.realTimeUpdateChannel,
-                supported: typeof BroadcastChannel !== 'undefined'
-            };
-        },
-        
-        testBroadcast: (testData = { test: true, timestamp: new Date().toISOString() }) => {
-            const success = safeBroadcast(testData);
-            console.log('[RankMember] 테스트 브로드캐스트 결과:', success ? '성공' : '실패');
-            return success;
-        },
-        
         showInfo: () => {
-            console.log('[RankMember] 📊 페이지 정보 (v3.3.0 - 완전 통합 버전):');
+            console.log('[RankMember] 📊 페이지 정보 (v4.0.0 - API 계산 데이터 수신):');
             console.log(`- 전체 의원: ${memberList.length}명`);
             console.log(`- 원본 데이터: ${originalMemberData.length}명`);
+            console.log(`- 계산된 데이터: ${calculatedMemberData.length}명`);
             console.log(`- 필터된 의원: ${filteredMembers.length}명`);
             console.log(`- 현재 페이지: ${currentPage}/${totalPages}`);
             console.log(`- 현재 검색어: "${searchQuery}"`);
             console.log(`- 검색 결과:`, searchState.searchResults);
             console.log(`- APIService 상태: ${window.APIService?._isReady ? '✅' : '❌'}`);
-            console.log(`- 가중치 연결: ${weightSyncState.percentPageConnected ? '✅' : '❌'}`);
-            console.log(`- 현재 가중치:`, weightSyncState.currentWeights);
-            console.log(`- 마지막 가중치 업데이트: ${weightSyncState.lastWeightUpdate || '없음'}`);
-            const weightAppliedCount = filteredMembers.filter(m => m.weightApplied).length;
-            console.log(`- 가중치 적용된 의원: ${weightAppliedCount}명`);
+            console.log(`- percent 페이지 연결: ${dataReceiveState.percentPageConnected ? '✅' : '❌'}`);
+            console.log(`- 계산된 데이터 사용: ${dataReceiveState.isUsingCalculatedData ? '✅' : '❌'}`);
+            console.log(`- 마지막 데이터 수신: ${dataReceiveState.lastDataReceived || '없음'}`);
+            console.log(`- 적용된 가중치:`, dataReceiveState.appliedWeights);
             console.log('- BroadcastChannel 상태:', this.getChannelStatus());
-        },
-        
-        testWeightCalculation: (memberName) => {
-            const member = originalMemberData.find(m => m.name === memberName);
-            if (member && weightSyncState.currentWeights) {
-                const bounds = calculateNormalizationBounds(originalMemberData);
-                const score = calculateMemberScore(member, weightSyncState.currentWeights, bounds);
-                console.log(`[RankMember] ${memberName} 점수 계산:`, score);
-                return score;
-            } else {
-                console.log(`[RankMember] ${memberName} 찾을 수 없음 또는 가중치 없음`);
-                return null;
-            }
         }
     };
 
@@ -1562,17 +1501,17 @@ document.addEventListener('DOMContentLoaded', function() {
         } else {
             console.warn('[RankMember] ⚠️ API 서비스 연결 타임아웃, 폴백 데이터 사용');
             memberList = getFallbackData();
-            memberRanking = [];
-            mergeAndProcessData();
+            mergeAndStoreOriginalData([], []);
+            filteredMembers = [...originalMemberData];
             initializeElements();
             setupSearch();
             setupFilters();
             setupSorting();
-            initializeRealTimeSync();
+            initializeRealTimeDataReceive();
         }
     }
     
     waitForAPI();
 
-    console.log('[RankMember] 📦 rank_member.js 로드 완료 (v3.3.0 - 완전 통합 버전 + BroadcastChannel v4)');
+    console.log('[RankMember] 📦 rank_member.js 로드 완료 (v4.0.0 - API 계산 데이터 수신)');
 });
