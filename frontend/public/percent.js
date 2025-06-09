@@ -485,13 +485,20 @@ function restoreWeightsFromLocalStorage() {
                     input.value = weights[input.dataset.weight];
                 }
             });
-            console.log('[percent.js] [RESTORE] localStorage에서 가중치 복원 완료:', weights);
-        } catch (e) {
-            // 무시
-        }
+            updateTotal();
+        } catch (e) {}
     }
-    updateTotal();
 }
+
+// 1) DOMContentLoaded - input이 거의 다 렌더됨
+document.addEventListener('DOMContentLoaded', restoreWeightsFromLocalStorage);
+// 2) window.onload - 이미지 등 다 로드 완료 후 한 번 더
+window.addEventListener('load', restoreWeightsFromLocalStorage);
+// 3) 500ms, 1000ms 지연 복원도 추가
+setTimeout(restoreWeightsFromLocalStorage, 500);
+setTimeout(restoreWeightsFromLocalStorage, 1000);
+// 다른 탭에서 값이 바뀌면 자동 복원?
+window.addEventListener('storage', restoreWeightsFromLocalStorage);
 
 // 초기화 함수
 function initializePercentSync() {

@@ -1275,23 +1275,9 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     
     waitForAPI();
-
-    // === 🟢 실시간 가중치 동기화 (percent.js 연동) ===
-    try {
-        const weightSyncChannel = new BroadcastChannel('weight-sync');
-        weightSyncChannel.addEventListener('message', async (event) => {
-            if (event.data && event.data.type === 'weight-update') {
-                console.log('[PercentMember] 🟢 가중치 변경 감지: 실시간 데이터 새로고침');
-                await fetchMemberData(pageState.currentMember);
-            }
-        });
-        console.log('[PercentMember] 🟢 weight-sync BroadcastChannel 리스너 등록 완료');
-    } catch (e) {
-        console.warn('[PercentMember] ⚠️ weight-sync BroadcastChannel 등록 실패:', e);
-    }
 });
 
-console.log('📦 percent_member.js 로드 완료 (검색 기능 개선 버전)';
+console.log('📦 percent_member.js 로드 완료 (검색 기능 개선 버전)');
 
 // ✅ 1. 검색 버튼 클릭 → 주소창에 반영
 document.getElementById('searchButton').addEventListener('click', () => {

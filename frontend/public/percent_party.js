@@ -1061,20 +1061,6 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     };
 
-    // === 🟢 실시간 가중치 동기화 (percent.js 연동) ===
-    try {
-        const weightSyncChannel = new BroadcastChannel('weight-sync');
-        weightSyncChannel.addEventListener('message', async (event) => {
-            if (event.data && event.data.type === 'weight-update') {
-                console.log('[PercentParty] 🟢 가중치 변경 감지: 실시간 데이터 새로고침');
-                await fetchPartyData(pageState.currentParty);
-            }
-        });
-        console.log('[PercentParty] 🟢 weight-sync BroadcastChannel 리스너 등록 완료');
-    } catch (e) {
-        console.warn('[PercentParty] ⚠️ weight-sync BroadcastChannel 등록 실패:', e);
-    }
-
     // 초기화 실행
     initializePage();
 
