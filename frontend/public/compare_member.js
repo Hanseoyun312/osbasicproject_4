@@ -1502,3 +1502,32 @@ async function applyWeightsAndSync() {
     console.log('  - window.compareMemberDebug.clearSelection() : 선택 초기화');
     console.log('  - window.compareMemberDebug.testComparison("의원1", "의원2") : 비교 API 테스트');
 });
+
+document.addEventListener('DOMContentLoaded', () => {
+    // 1. 저장된 localStorage 값 복원
+    const savedWeights = localStorage.getItem('user_weights');
+    if (savedWeights) {
+        try {
+            const weights = JSON.parse(savedWeights);
+            document.querySelectorAll('.weight-input').forEach(input => {
+                const key = input.dataset.weight;
+                if (weights.hasOwnProperty(key)) {
+                    input.value = weights[key]; // input 채우기
+                }
+            });
+        } catch (e) {
+            console.warn('가중치 복원 오류:', e);
+        }
+    }
+
+    // 2. UI 및 상태 계산 (값 복원 이후 실행)
+    updateTotal();
+
+    // 3. input 입력 이벤트 등록
+    document.querySelectorAll('.weight-input').forEach(input => {
+        input.addEventListener('input', updateTotal);
+    });
+
+    // 4. 로그 메시지
+    addLog('🎯 가중치 동기화 준비 완료', 'success');
+});
