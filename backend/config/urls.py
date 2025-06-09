@@ -26,6 +26,7 @@ urlpatterns = [
     path('searchapi/', include('searchapi.urls')),
     path("chatbot/", include("chatbot.urls")),
     path('ranking/members/', get_member_rankings),
+    path('api/', include('apply_weights.urls')),
     path('ranking/parties/score/', get_party_score),
     path('ranking/parties/stats/', get_party_stats),
     path('pybo/',include('pybo.urls')),

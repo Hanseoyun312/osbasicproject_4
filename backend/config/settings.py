@@ -46,6 +46,7 @@ INSTALLED_APPS = [
     'ranking_members',
     'ranking_parties',
     'corsheaders',
+    'apply_weights',
     'pybo.apps.PyboConfig', # 여기서부터 추가
     'legislation.apps.LegislationConfig',
     'attendance.apps.AttendanceConfig',
