@@ -622,14 +622,19 @@
 
         // 이벤트 리스너 추가
         document.addEventListener('DOMContentLoaded', function() {
+            // 1. localStorage에서 복원
+            if (typeof window.restoreWeightsFromLocalStorage === 'function') {
+                window.restoreWeightsFromLocalStorage();
+            }
+            // 2. input 이벤트 리스너
             const inputs = document.querySelectorAll('.weight-input');
             inputs.forEach(input => {
                 input.addEventListener('input', updateTotal);
             });
-            
-            // 초기 합계 계산
+            // 3. 합계 초기 계산
             updateTotal();
         });
+
 
         // 기존 JavaScript 함수들 (기능 유지)
         function applyWeightsAndSync() {
