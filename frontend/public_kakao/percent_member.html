@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>백일하 - 국회의원 상세퍼센트</title>
+    <!-- 외부 스타일시트 연결 -->
+    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="percent_member.css">
+</head>
+<body>
+    <!-- 헤더 시작 -->
+    <header>
+        <a href="mainpage.html" style="text-decoration: none; color: inherit;">
+            <div class="logo">
+                <img src="https://raw.githubusercontent.com/moody1317/osbasicproject_4/refs/heads/main/logo.png" alt="백일하 로고">
+            </div>
+        </a>
+    </header>
+    
+    <div class="sticky-nav-container">
+    <!-- 네비게이션 메뉴 시작 -->
+    <nav>
+        <ul>
+            <li class="has-submenu" data-submenu="party-submenu">
+                정당
+            </li>
+            <li class="has-submenu" data-submenu="member-submenu">
+                국회의원
+            </li>
+            <li class="has-submenu" data-submenu="activity-submenu">
+                의정 활동
+            </li>
+            <li class="has-submenu" data-submenu="etc-submenu">
+                기타
+            </li>
+        </ul>
+        
+        <!-- 정당 서브메뉴 -->
+        <div class="submenu-wrapper" id="party-submenu">
+            <div class="submenu-container">
+                <a href="rank_party.html" class="submenu-item">명예의 정당</a>
+                <a href="percent_party.html" class="submenu-item">정당 상세 퍼센트</a>
+                <a href="compare_party.html" class="submenu-item">정당 비교하기</a>
+            </div>
+        </div>
+        
+        <!-- 국회의원 서브메뉴 -->
+        <div class="submenu-wrapper" id="member-submenu">
+            <div class="submenu-container">
+                <a href="compare_member.html" class="submenu-item">국회의원 비교하기</a>
+                <a href="percent_member.html" class="submenu-item">국회의원 상세정보</a>
+                <a href="rank_member.html" class="submenu-item">명예의 의원</a>
+            </div>
+        </div>
+        
+        <!-- 의정 활동 서브메뉴 -->
+        <div class="submenu-wrapper" id="activity-submenu">
+            <div class="submenu-container">
+                <a href="petition.html" class="submenu-item">청원 현황</a>
+                <a href="meeting.html" class="submenu-item">본회의 현황</a>
+            </div>
+        </div>
+        
+        <!-- 기타 서브메뉴 -->
+        <div class="submenu-wrapper" id="etc-submenu">
+            <div class="submenu-container">
+                <a href="outpage.html" class="submenu-item">외부 사이트</a>
+                <a href="inquiry.html" class="submenu-item">도움말</a>
+                <a href="announcements.html" class="submenu-item">공지사항</a>
+            </div>
+        </div>
+    </nav>
+    </div>
+    
+    <main>
+    
+        <!-- 검색 영역 추가 -->
+    <div class="search-container">
+        <div class="search-bar">
+            <div class="search-filter">
+                <select id="partyFilter">
+                    <option value="">전체 정당</option>
+                    <option value="더불어민주당">더불어민주당</option>
+                    <option value="국민의힘">국민의힘</option>
+                    <option value="조국혁신당">조국혁신당</option>
+                    <option value="진보당">진보당</option>
+                    <option value="개혁신당">개혁신당</option>
+                    <option value="사회민주당">사회민주당</option>
+                    <option value="기본소득당">기본소득당</option>
+                    <option value="무소속">무소속</option>
+                </select>
+            </div>
+            <div class="search-input">
+                <input type="text" id="memberSearchInput" placeholder="국회의원 이름을 입력하세요...">
+            </div>
+            <button class="search-button" id="searchButton">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="m19 19-3.5-3.5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                    <circle cx="11" cy="11" r="8" stroke="currentColor" stroke-width="2"/>
+                </svg>
+            </button>
+        </div>
+    </div>
+    
+    <!-- 국회의원 프로필 -->
+    <div class="container">
+        <div class="member-profile">
+            <div class="member-left-column">
+                <div class="member-photo" id="memberPhoto">
+                    <div class="photo-placeholder">의원 사진</div>
+                </div>
+                <div class="member-name-card">
+                    <span class="home-icon">
+                        <a href="#" title="의원 홈페이지 바로가기" id="memberHomepageLink">
+                            <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <path d="M10 20V14H14V20H19V12H22L12 3L2 12H5V20H10Z" fill="currentColor"/>
+                            </svg>
+                        </a>
+                    </span>
+                    <h1 class="member-name" id="memberName">의원</h1>
+                    <span class="member-party" id="memberParty">정당명</span>
+                </div>
+            </div>
+            
+            <div class="member-right-column">
+                <div class="ranking" id="overallRanking">전체 순위: <strong>로딩 중...</strong></div>
+                <div class="ranking" id="partyRanking">정당 내 순위: <strong>로딩 중...</strong></div>
+                
+                <div class="stat-item">출석 <span class="stat-value" id="attendanceStat">로딩 중...</span></div>
+                <div class="stat-item">본회의 가결 <span class="stat-value" id="billPassStat">로딩 중...</span></div>
+                <div class="stat-item">청원 소개 <span class="stat-value" id="petitionProposalStat">로딩 중...</span></div>
+                <div class="stat-item">청원 결과 <span class="stat-value" id="petitionResultStat">로딩 중...</span></div>
+                <div class="stat-item">무효표 및 기권 <span class="stat-value" id="abstentionStat">로딩 중...</span></div>
+                <div class="stat-item">위원회 직책<span class="stat-value" id="committeeStat">로딩 중...</span></div>
+                <div class="stat-item">투표 결과 일치 <span class="stat-value" id="voteMatchStat">로딩 중...</span></div>
+                <div class="stat-item">투표 결과 불일치 <span class="stat-value" id="voteMismatchStat">로딩 중...</span></div>
+            </div>
+        </div>
+    </div>
+    </main>
+    
+    <!-- 챗봇 아이콘 -->
+    <div class="robot-icon">
+        <img src="https://raw.githubusercontent.com/moody1317/osbasicproject_4/946d8f24f9c780853862670da370ad174c3def6c/chat.png" alt="챗봇 아이콘">
+    </div>
+    
+    <!-- 챗봇 모달 -->
+    <div class="chatbot-modal" id="chatbotModal">
+        <div class="chatbot-container">
+            <div class="chatbot-header">
+                <div class="date" id="chatbotDate"></div>
+                <button class="close-button">&times;</button>
+            </div>
+            <div class="chatbot-messages" id="chatbotMessages">
+                <!-- 메시지가 여기에 추가됩니다 -->
+            </div>
+            
+            <div class="suggestion-buttons">
+                <button class="suggestion-btn">의원 정보 검색</button>
+                <button class="suggestion-btn">표결 정보</button>
+                <button class="suggestion-btn">청원 소개 내역</button>
+                <button class="suggestion-btn">의정 활동 분석</button>
+            </div>
+            
+            <div class="chatbot-input">
+                <input type="text" id="messageInput" placeholder="국회의원에 대해 궁금한 점을 입력해주세요">
+                <button class="send-button">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M22 2L11 13" stroke="#AAAAAA" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                        <path d="M22 2L15 22L11 13L2 9L22 2Z" stroke="#AAAAAA" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                </button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- 외부 스크립트 연결 -->
+    <script src="global_sync.js"></script>
+    <script src="scripts.js"></script>
+    <script src="percent_member.js"></script>
+
+    <footer style="margin-top: 40px; padding: 20px; font-size: 12px; color: gray; text-align: center; border-top: 1px solid #ddd; background-color: #f9f9f9;">
+        본 웹사이트는 충북대학교의 오픈소스 기초 프로젝트 과제를 위해 제작된 비상업적 프로젝트입니다.<br>
+        사용된 의원 정보 및 이미지는 열린국회정보 API를 통해 수집되었으며, 실제 정당 및 국회의원과 무관한 가상 시각화입니다.
+    </footer>
+
+</body>
+</html>

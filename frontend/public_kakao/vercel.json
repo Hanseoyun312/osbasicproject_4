@@ -1,0 +1,81 @@
+{
+  "rewrites": [
+    {
+      "source": "/api/legislation/(.*)",
+      "destination": "https://osprojectapi.onrender.com/legislation/$1"
+    },
+    {
+      "source": "/api/attendance/(.*)",
+      "destination": "https://osprojectapi.onrender.com/attendance/$1"
+    },
+    {
+      "source": "/api/performance/(.*)",
+      "destination": "https://osprojectapi.onrender.com/performance/$1"
+    },
+    {
+      "source": "/api/chatbot/(.*)",
+      "destination": "https://osprojectapi.onrender.com/chatbot/$1"
+    }
+  ],
+  "headers": [
+    {
+      "source": "/api/(.*)",
+      "headers": [
+        {
+          "key": "Access-Control-Allow-Origin",
+          "value": "*"
+        },
+        {
+          "key": "Access-Control-Allow-Methods",
+          "value": "GET, POST, PUT, DELETE, OPTIONS"
+        },
+        {
+          "key": "Access-Control-Allow-Headers",
+          "value": "Content-Type, Authorization, X-Requested-With"
+        },
+        {
+          "key": "Access-Control-Max-Age",
+          "value": "3600"
+        },
+        {
+          "key": "Cache-Control",
+          "value": "public, max-age=300, s-maxage=300"
+        }
+      ]
+    },
+    {
+      "source": "/(.*)",
+      "headers": [
+        {
+          "key": "X-Content-Type-Options",
+          "value": "nosniff"
+        },
+        {
+          "key": "X-Frame-Options",
+          "value": "DENY"
+        },
+        {
+          "key": "X-XSS-Protection",
+          "value": "1; mode=block"
+        },
+        {
+          "key": "Referrer-Policy",
+          "value": "strict-origin-when-cross-origin"
+        },
+        {
+          "key": "Permissions-Policy",
+          "value": "camera=(), microphone=(), geolocation=()"
+        }
+      ]
+    }
+  ],
+  "functions": {
+    "app/**": {
+      "maxDuration": 30
+    }
+  },
+  "regions": ["icn1"],
+  "cleanUrls": true,
+  "trailingSlash": false,
+  "framework": null
+}

@@ -1,0 +1,786 @@
+/* 디자인 토큰 - 색상 및 타이포그래피 */
+:root {
+    /* 메인 색상 */
+    --main1: #dbe5ffff;
+    --main2: #d8e4ff42; /* 25% 불투명도 */
+    
+    /* 사이드 색상 */
+    --side: #e7eeffff;
+    --side2: #dedfe2ff;
+    
+    /* 챗팅 관련 색상 */
+    --chatting: #e7e4ffff;
+    --sent: #ddd4e1ff;
+    
+    /* 텍스트 색상 */
+    --string: #000000ff;
+    --example: #898b8eff;
+    --number: #8d8a8aff;
+    
+    /* 기타 UI 요소 */
+    --drop: #6b77ff6b; /* 42% 불투명도 */
+    --light-blue: #70c8e9;
+    --chatbot-bg: #f0f4ff;
+    --user-message-bg: #e3e9ff;
+    --bot-message-bg: #e7e4ffff;
+
+    /* 정당별 색상 팔레트 */
+    /* 국민의 힘 */
+    --party-ppp-main: #E61E2B;
+    --party-ppp-secondary: #D32036;
+    --party-ppp-tertiary: #E84C56;
+    --party-ppp-quaternary: #F37A82;
+    --party-ppp-quinary: #FAA8AD;
+    --party-ppp-sixth: #FF4D5E;
+    --party-ppp-seventh: #FF7382;
+    --party-ppp-eighth: #FF99A3;
+    --party-ppp-ninth: #b71c1c;
+    --party-ppp-bg: #FEECED;
+            
+    /* 더불어민주당 */
+    --party-dp-main: #152484;
+    --party-dp-secondary: #004EA2;
+    --party-dp-tertiary: #1A6CBD;
+    --party-dp-quaternary: #5280C7;
+    --party-dp-quinary: #8AA8D8;
+    --party-dp-sixth: #2E3D99;
+    --party-dp-seventh: #475BB0;
+    --party-dp-eighth: #6A78C4;
+    --party-dp-ninth: #0f1f5e;
+    --party-dp-bg: #E8EFF9;
+            
+    /* 조국혁신당 */
+    --party-rk-main: #06275E;
+    --party-rk-secondary: #004098;
+    --party-rk-tertiary: #0073CF;
+    --party-rk-quaternary: #3A95E4;
+    --party-rk-quinary: #7FB7ED;
+    --party-rk-sixth: #205BA3;
+    --party-rk-seventh: #4785CC;
+    --party-rk-eighth: #79A8E2;
+    --party-rk-ninth: #1a1a2e;
+    --party-rk-bg: #E6F0FA;
+            
+    /* 개혁신당 */
+    --party-reform-main: #FF7210;
+    --party-reform-secondary: #F15A22;
+    --party-reform-tertiary: #FF8A3D;
+    --party-reform-quaternary: #FFA06A;
+    --party-reform-quinary: #FFC097;
+    --party-reform-sixth: #FF8036;
+    --party-reform-seventh: #FF934D;
+    --party-reform-eighth: #FFAD75;
+    --party-reform-ninth: #d84315;
+    --party-reform-bg: #FFEEE3;
+            
+    /* 진보당 */
+    --party-jp-main: #D6001C;
+    --party-jp-secondary: #B20017;
+    --party-jp-tertiary: #9A0416;
+    --party-jp-quaternary: #E3425C;
+    --party-jp-quinary: #EB7A8D;
+    --party-jp-sixth: #C02033;
+    --party-jp-seventh: #D9374A;
+    --party-jp-eighth: #E55E6E;
+    --party-jp-ninth: #880e4f;
+    --party-jp-bg: #FADDE3;
+            
+    /* 기본소득당 */
+    --party-bip-main: #091E3A;
+    --party-bip-secondary: #00D2C3;
+    --party-bip-tertiary: #0B355A;
+    --party-bip-quaternary: #31A8A0;
+    --party-bip-quinary: #7BD9D1;
+    --party-bip-sixth: #0F2A46;
+    --party-bip-seventh: #42B5AD;
+    --party-bip-eighth: #65C7C0;
+    --party-bip-ninth: #004d40;
+    --party-bip-bg: #E8F7F6;
+            
+    /* 사회민주당 */
+    --party-sdp-main: #F58400;
+    --party-sdp-secondary: #D67300;
+    --party-sdp-tertiary: #FF9520;
+    --party-sdp-quaternary: #FFAA4D;
+    --party-sdp-quinary: #FFC280;
+    --party-sdp-sixth: #E67B00;
+    --party-sdp-seventh: #FF9C3B;
+    --party-sdp-eighth: #FFB566;
+    --party-sdp-ninth: #2e7d32;
+    --party-sdp-bg: #EBF7E4;
+            
+    /* 무소속 */
+    --party-ind-main: #4B5563;
+    --party-ind-secondary: #6B7280;
+    --party-ind-tertiary: #9CA3AF;
+    --party-ind-quaternary: #D1D5DB;
+    --party-ind-quinary: #E5E7EB;
+    --party-ind-sixth: #5B6673;
+    --party-ind-seventh: #7B8490;
+    --party-ind-eighth: #ABB1BA;
+    --party-ind-ninth: #263238;
+    --party-ind-bg: #F9FAFB;
+            
+    /* 현재 활성 정당 색상 (기본값: 더불어민주당) */
+    --current-party-main: var(--party-dp-main);
+    --current-party-secondary: var(--party-dp-secondary);
+    --current-party-tertiary: var(--party-dp-tertiary);
+    --current-party-quaternary: var(--party-dp-quaternary);
+    --current-party-quinary: var(--party-dp-quinary);
+    --current-party-sixth: var(--party-dp-sixth);
+    --current-party-seventh: var(--party-dp-seventh);
+    --current-party-eighth: var(--party-dp-eighth);
+    --current-party-bg: var(--party-dp-bg);
+}
+
+/* 폰트 설정 */
+@import url('https://fonts.googleapis.com/css2?family=Blinker:wght@400&family=Roboto:wght@400&display=swap');
+
+/* 기본 스타일 */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+/* HTML과 BODY의 기본 높이 설정 */
+html {
+    height: 100%;
+}
+
+/* 푸터 고정을 위한 전체 레이아웃 설정 */
+body {
+    background-color: white;
+    color: var(--string);
+    font-family: 'Blinker', sans-serif;
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 20px;
+    line-height: 1.6;
+    min-height: 100vh; /* 최소 높이를 뷰포트 높이로 설정 */
+    display: flex;
+    flex-direction: column; /* 세로 방향 플렉스 컨테이너 */
+}
+
+/* 메인 콘텐츠 영역이 남은 공간을 모두 차지하도록 */
+main {
+    flex: 1; /* 남은 공간을 모두 차지 */
+}
+
+/* 푸터 스타일 */
+footer {
+    margin-top: auto; /* 푸터를 항상 하단으로 밀어내기 */
+    padding: 20px;
+    font-size: 12px;
+    color: gray;
+    text-align: center;
+    border-top: 1px solid #ddd;
+    background-color: #f9f9f9;
+    margin-left: -20px; /* body의 padding 상쇄 */
+    margin-right: -20px; /* body의 padding 상쇄 */
+    margin-bottom: -20px; /* body의 padding 상쇄 */
+}
+
+/* 헤더 스타일 */
+header {
+    margin-bottom: 20px;
+}
+
+.logo {
+    display: flex;
+    align-items: center;
+    margin: 15px 0;
+    cursor: pointer;
+    transition: opacity 0.2s ease;
+}
+
+.logo:hover {
+    opacity: 0.8;
+}
+
+.logo img {
+    height: auto;
+    width: 180px;
+    transition: transform 0.2s ease;
+}
+
+.logo:hover img {
+    transform: scale(1.02);
+}
+
+/* 네비게이션 스타일 */
+nav {
+    border-bottom: 1px solid var(--side2);
+    margin-bottom: 0;
+    display: flex;
+    justify-content: space-between;
+    position: relative;
+}
+
+nav ul {
+    display: flex;
+    list-style: none;
+    width: 100%;
+}
+
+nav li {
+    flex: 1;
+    text-align: center;
+    padding: 15px 0;
+    cursor: pointer;
+    font-size: 20px;
+    position: relative;
+    transition: background-color 0.2s;
+}
+
+nav li:hover {
+    background-color: var(--main2);
+}
+
+nav li:hover::after, nav li.active::after {
+    content: "";
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    height: 2px;
+    background-color: var(--light-blue);
+}
+
+nav li.active {
+    font-weight: 500;
+}
+
+/* 서브메뉴 스타일 */
+.submenu-wrapper {
+    display: none;
+    width: 100%;
+    background-color: var(--main1);
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    position: absolute;
+    left: 0;
+    z-index: 100;
+    top: 100%;
+}
+
+.submenu-container {
+    display: flex;
+    justify-content: space-between;
+    max-width: 1200px;
+    margin: 0 auto;
+    width: 100%;
+}
+
+.submenu-item {
+    flex: 1;
+    color: var(--string);
+    background-color: var(--main1);
+    text-decoration: none;
+    font-size: 18px;
+    padding: 15px 0;
+    text-align: center;
+    transition: background-color 0.2s, color 0.2s;
+    display: block;
+}
+
+.submenu-item:hover {
+    color: var(--light-blue);
+    background-color: var(--main2);
+}
+
+.sticky-nav-container {
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    width: 100%;
+    background-color: white;
+    /* box-shadow 제거 */
+}
+
+/* 챗봇 아이콘 */
+.robot-icon {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+    cursor: pointer;
+    transition: transform 0.2s;
+    z-index: 1000;
+    background-color: var(--main1);
+}
+
+.robot-icon:hover {
+    transform: scale(1.05);
+}
+
+.robot-icon img {
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    object-fit: cover;
+}
+
+/* 챗봇 모달 스타일 */
+.chatbot-modal {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 90%;
+    max-width: 400px;
+    height: 600px;
+    background-color: white;
+    border-radius: 15px;
+    box-shadow: 0 5px 20px rgba(0, 0, 0, 0.15);
+    z-index: 2000;
+    display: none;
+    overflow: hidden;
+}
+
+.chatbot-modal.active {
+    display: block;
+}
+
+.chatbot-container {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    background-color: var(--chatbot-bg);
+}
+
+.chatbot-header {
+    padding: 15px;
+    background-color: var(--main1);
+    color: var(--string);
+    text-align: center;
+    position: relative;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
+}
+
+.date {
+    font-size: 14px;
+    font-weight: 500;
+}
+
+.close-button {
+    position: absolute;
+    top: 10px;
+    right: 15px;
+    background: none;
+    border: none;
+    font-size: 20px;
+    cursor: pointer;
+    color: var(--string);
+    transition: opacity 0.2s;
+}
+
+.close-button:hover {
+    opacity: 0.7;
+}
+
+.chatbot-messages {
+    flex: 1;
+    overflow-y: auto;
+    padding: 15px;
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+}
+
+.message {
+    max-width: 80%;
+    padding: 12px 15px;
+    border-radius: 15px;
+    word-wrap: break-word;
+}
+
+.message.bot {
+    align-self: flex-start;
+    display: flex;
+    align-items: flex-start;
+}
+
+.bot-avatar {
+    min-width: 40px;
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    overflow: hidden;
+    margin-right: 10px;
+    background-color: var(--main1);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.bot-avatar img {
+    width: 40px;
+    height: 40px;
+    object-fit: cover;
+    border-radius: 50%;
+}
+
+.message-content {
+    background-color: var(--bot-message-bg);
+    padding: 12px 15px;
+    border-radius: 15px;
+}
+
+.message-content p {
+    margin-bottom: 5px;
+}
+
+.message-content p:last-child {
+    margin-bottom: 0;
+}
+
+.small-text {
+    font-size: 12px;
+    color: var(--example);
+}
+
+.message.user {
+    align-self: flex-end;
+    background-color: var(--user-message-bg);
+}
+
+/* 타이핑 효과 스타일 */
+.typing-indicator {
+    opacity: 1;
+}
+
+.typing-dots {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 8px 0;
+}
+
+.typing-dots span {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background-color: var(--example);
+    animation: typingBounce 1.4s infinite ease-in-out;
+}
+
+.typing-dots span:nth-child(1) {
+    animation-delay: -0.32s;
+}
+
+.typing-dots span:nth-child(2) {
+    animation-delay: -0.16s;
+}
+
+.typing-dots span:nth-child(3) {
+    animation-delay: 0s;
+}
+
+@keyframes typingBounce {
+    0%, 80%, 100% {
+        transform: scale(0.7);
+        opacity: 0.5;
+    }
+    40% {
+        transform: scale(1);
+        opacity: 1;
+    }
+}
+
+.suggestion-buttons {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 8px;
+    padding: 8px 10px;
+}
+
+.suggestion-btn {
+    background-color: white;
+    border: 1px solid var(--side2);
+    padding: 6px 12px;
+    border-radius: 18px;
+    font-size: 12px;
+    cursor: pointer;
+    color: var(--string);
+    transition: all 0.2s;
+}
+
+.suggestion-btn:hover {
+    background-color: var(--main2);
+}
+
+.chatbot-input {
+    display: flex;
+    padding: 15px;
+    border-top: 1px solid var(--side2);
+    background-color: white;
+}
+
+.chatbot-input input {
+    flex: 1;
+    padding: 10px 15px;
+    border: 1px solid var(--side2);
+    border-radius: 25px;
+    outline: none;
+    font-family: 'Noto Sans KR', sans-serif;
+    transition: border-color 0.2s;
+}
+
+.chatbot-input input:focus {
+    border-color: var(--light-blue);
+}
+
+.send-button {
+    background: none;
+    border: none;
+    margin-left: 10px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 8px;
+    border-radius: 50%;
+    transition: background-color 0.2s;
+}
+
+.send-button:hover {
+    background-color: var(--main2);
+}
+
+.timestamp {
+    font-size: 11px;
+    color: var(--example);
+    margin-top: 5px;
+    text-align: right;
+}
+
+/* 페이지네이션 스타일 */
+.pagination {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    margin: 40px 0;
+    gap: 5px;
+}
+
+.pagination-wrapper {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.pagination-btn {
+    display: inline-block;
+    padding: 8px 12px;
+    background-color: white;
+    color: var(--string);
+    border: 1px solid var(--side2);
+    border-radius: 5px;
+    cursor: pointer;
+    transition: all 0.2s;
+    font-size: 14px;
+    min-width: 35px;
+    text-align: center;
+    font-family: inherit;
+}
+
+.pagination-btn:hover {
+    background-color: var(--light-blue);
+    color: white;
+    border-color: var(--light-blue);
+    transform: translateY(-1px);
+}
+
+.pagination-btn.active {
+    background-color: var(--light-blue);
+    color: white;
+    border-color: var(--light-blue);
+    font-weight: 500;
+}
+
+.pagination-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.pagination-btn:disabled:hover {
+    transform: none;
+    background-color: white;
+    color: var(--string);
+    border-color: var(--side2);
+}
+
+.pagination-ellipsis {
+    color: var(--example);
+    padding: 8px 5px;
+    font-size: 14px;
+    user-select: none;
+}
+
+/* 반응형 디자인 개선 */
+@media (max-width: 1024px) {
+    body {
+        max-width: 100%;
+        padding: 15px;
+    }
+    
+    nav li {
+        font-size: 18px;
+        padding: 14px 0;
+    }
+    
+    .submenu-item {
+        font-size: 16px;
+        padding: 14px 0;
+    }
+    
+    .logo img {
+        width: 160px;
+    }
+    
+    .chatbot-modal {
+        width: 85%;
+        max-width: 450px;
+    }
+    
+    .data-table {
+        font-size: 13px;
+        overflow-x: auto;
+        display: block;
+        white-space: nowrap;
+    }
+    
+    .data-table th,
+    .data-table td {
+        padding: 10px 12px;
+    }
+    
+    .notification {
+        max-width: 350px;
+        font-size: 13px;
+    }
+}
+
+@media (max-width: 768px) {
+    .chatbot-modal {
+        width: 95%;
+        height: 80vh;
+        max-height: 600px;
+    }
+    
+    .pagination-btn {
+        padding: 6px 10px;
+        font-size: 12px;
+        min-width: 30px;
+    }
+    
+    .suggestion-btn {
+        font-size: 11px;
+        padding: 5px 10px;
+    }
+}
+
+@media (max-width: 480px) {
+    .logo img {
+        width: 140px;
+    }
+    
+    nav li {
+        font-size: 14px;
+        padding: 10px 0;
+    }
+    
+    .submenu-item {
+        font-size: 12px;
+        padding: 10px 0;
+    }
+    
+    .btn {
+        padding: 8px 16px;
+        font-size: 12px;
+        min-width: 60px;
+    }
+}
+
+/* 접근성 개선 */
+@media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+    }
+}
+
+/* 고대비 모드 지원 */
+@media (prefers-contrast: high) {
+    :root {
+        --main1: #000080;
+        --main2: #0000ff33;
+        --side: #f0f0f0;
+        --side2: #cccccc;
+        --string: #000000;
+        --example: #666666;
+        --light-blue: #0066cc;
+    }
+}
+
+/* 다크 모드 기본 준비 (향후 확장용) */
+@media (prefers-color-scheme: dark) {
+    /* 현재는 적용하지 않음 - 기존 디자인 유지 */
+}
+
+/* 포커스 표시 개선 */
+button:focus,
+a:focus,
+input:focus,
+select:focus,
+textarea:focus {
+    outline: 2px solid var(--light-blue);
+    outline-offset: 2px;
+}
+
+/* 선택 불가능한 텍스트 스타일 */
+.no-select {
+    user-select: none;
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+}
+
+/* 툴팁 스타일 (향후 사용) */
+.tooltip {
+    position: relative;
+    cursor: help;
+}
+
+.tooltip::after {
+    content: attr(data-tooltip);
+    position: absolute;
+    bottom: 125%;
+    left: 50%;
+    transform: translateX(-50%);
+    background-color: rgba(0, 0, 0, 0.8);
+    color: white;
+    padding: 5px 10px;
+    border-radius: 4px;
+    font-size: 12px;
+    white-space: nowrap;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.2s ease;
+    z-index: 1000;
+}
+
+.tooltip:hover::after {
+    opacity: 1;
+}

@@ -1,0 +1,46 @@
+청원
+https://baekilha.onrender.com/legislation/petition/
+https://baekilha.onrender.com/legislation/petition-introducer/
+
+본회의
+https://baekilha.onrender.com/legislation/all/
+https://baekilha.onrender.com/legislation/costly/
+https://baekilha.onrender.com/legislation/etc/
+https://baekilha.onrender.com/legislation/law/
+https://baekilha.onrender.com/legislation/bill/
+
+
+위원회
+https://baekilha.onrender.com/legislation/committee-member/
+
+국회의원
+https://baekilha.onrender.com/legislation/member/
+https://baekilha.onrender.com/performance/api/performance/
+https://baekilha.onrender.com/attendance/attendance/
+https://baekilha.onrender.com/legislation/bill-count/
+https://baekilha.onrender.com/ranking/members/
+https://baekilha.onrender.com/legislation/photo/
+
+정당
+https://baekilha.onrender.com/performance/api/party_performance/
+https://baekilha.onrender.com/ranking/parties/score/
+
+정당 항목 랭킹 // 챗봇 용
+https://baekilha.onrender.com/ranking/parties/stats/
+
+국회의원 비교하기
+https://baekilha.onrender.com/compare_members/?member1=의원명1&member2=의원명2
+
+정당비교하기
+https://baekilha.onrender.com/compare_parties/?party1=정당명1&party2=정당명2
+
+챗봇
+https://baekilha.onrender.com/api/chatbot/
+
+국회의원 및 정당 실적
+
+
+https://baekilha.onrender.com/performance/api/party_stats/
+https://baekilha.onrender.com/performance/api/update_weights/  <- 브라우저에서 접근 안되는거 정상, 프론트엔드에서 post로 요청!
+https://baekilha.onrender.com/performance/api/performance/by-party/?party=정당명
+(예시: https://baekilha.onrender.com/performance/api/performance/by-party/?party=더불어민주당&order=desc&limit=5   -> order은 asc(내림차순) 또는 desc(오름차순), limit는 출력 갯수 제한)

@@ -1,0 +1,330 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>백일하 - 국회의원 비교하기</title>
+    <!-- 외부 스타일시트 연결 -->
+    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="compare_member.css">
+</head>
+<body>
+   <!-- 헤더 시작 -->
+    <header>
+        <!-- 로고 -->
+        <a href="mainpage.html" style="text-decoration: none; color: inherit;">
+            <div class="logo">
+                <img src="https://raw.githubusercontent.com/moody1317/osbasicproject_4/refs/heads/main/logo.png" alt="백일하 로고">
+            </div>
+        </a>
+    </header>
+    
+    <div class="sticky-nav-container">
+    <!-- 네비게이션 메뉴 시작 -->
+    <nav>
+        <ul>
+            <li class="has-submenu" data-submenu="party-submenu">
+                정당
+            </li>
+            <li class="has-submenu" data-submenu="member-submenu">
+                국회의원
+            </li>
+            <li class="has-submenu" data-submenu="activity-submenu">
+                의정 활동
+            </li>
+            <li class="has-submenu" data-submenu="etc-submenu">
+                기타
+            </li>
+        </ul>
+        
+        <!-- 정당 서브메뉴 -->
+        <div class="submenu-wrapper" id="party-submenu">
+            <div class="submenu-container">
+                <a href="rank_party.html" class="submenu-item">명예의 정당</a>
+                <a href="percent_party.html" class="submenu-item">정당 상세 퍼센트</a>
+                <a href="compare_party.html" class="submenu-item">정당 비교하기</a>
+            </div>
+        </div>
+        
+        <!-- 국회의원 서브메뉴 -->
+        <div class="submenu-wrapper" id="member-submenu">
+            <div class="submenu-container">
+                <a href="compare_member.html" class="submenu-item">국회의원 비교하기</a>
+                <a href="percent_member.html" class="submenu-item">국회의원 상세정보</a>
+                <a href="rank_member.html" class="submenu-item">명예의 의원</a>
+            </div>
+        </div>
+        
+        <!-- 의정 활동 서브메뉴 -->
+        <div class="submenu-wrapper" id="activity-submenu">
+            <div class="submenu-container">
+                <a href="petition.html" class="submenu-item">청원 현황</a>
+                <a href="meeting.html" class="submenu-item">본회의 현황</a>
+            </div>
+        </div>
+        
+        <!-- 기타 서브메뉴 -->
+        <div class="submenu-wrapper" id="etc-submenu">
+            <div class="submenu-container">
+                <a href="outpage.html" class="submenu-item">외부 사이트</a>
+                <a href="inquiry.html" class="submenu-item">도움말</a>
+                <a href="announcements.html" class="submenu-item">공지사항</a>
+            </div>
+        </div>
+    </nav>
+    </div>
+    
+    <main>
+    <div class="container">
+        <h1>국회의원 비교하기</h1>
+        
+        <div class="filter-options">
+            <div class="filter-tag">정당별 필터</div>
+            <div class="filter-tag">더불어민주당</div>
+            <div class="filter-tag">국민의힘</div>
+            <div class="filter-tag">조국혁신당</div>
+            <div class="filter-tag">개혁신당</div>
+            <div class="filter-tag">진보당</div>
+            <div class="filter-tag">기타 정당</div>
+            <div class="filter-tag">무소속</div>
+        </div>
+        
+        <div class="comparison-container">
+            <div class="comparison-card">
+                <div class="comparison-title">
+                    <label class="status-label">국회의원 선택</label>
+                    <div class="mp-search-container">
+                        <input type="text" class="mp-search-input" placeholder="국회의원 이름 검색">
+                        <div class="mp-search-results">
+                            <!-- 검색 결과가 여기에 동적으로 표시됩니다 -->
+                            <div class="mp-search-item">
+                                <img src="/api/placeholder/50/50" alt="의원 사진">
+                                <span>김민석</span>
+                                <span class="mp-party-tag" style="background-color: #152484;">더불어민주당</span>
+                            </div>
+                            <div class="mp-search-item">
+                                <img src="/api/placeholder/50/50" alt="의원 사진">
+                                <span>김병욱</span>
+                                <span class="mp-party-tag" style="background-color: #E61E2B;">국민의힘</span>
+                            </div>
+                            <div class="mp-search-item">
+                                <img src="/api/placeholder/50/50" alt="의원 사진">
+                                <span>김상훈</span>
+                                <span class="mp-party-tag" style="background-color: #E61E2B;">국민의힘</span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="mp-selected">
+                        <img src="https://raw.githubusercontent.com/moody1317/osbasicproject_4/refs/heads/main/chat.png" alt="의원 사진">
+                        <div class="mp-selected-info">
+                            <div class="mp-selected-name">국회의원을 검색하세요</div>
+                            <div class="mp-selected-party"></div>
+                        </div>
+                        <button class="mp-remove">×</button>
+                    </div>
+                </div>
+                
+                <div class="status-item">
+                    <span class="status-label">
+                        출석
+                        <i class="info-icon" data-tooltip="출석률 상세 정보">ⓘ</i>
+                    </span>
+                    <div class="status-value">-</div>
+                    <div class="tooltip-content" data-for="attendance">
+                        <div>총 회의 수: <span class="detail-total-meetings">-</span></div>
+                        <div>출석: <span class="detail-attendance">-</span></div>
+                        <div>결석: <span class="detail-absences">-</span></div>
+                        <div>청가: <span class="detail-leaves">-</span></div>
+                        <div>출장: <span class="detail-business-trips">-</span></div>
+                    </div>
+                </div>
+                
+                <div class="status-item">
+                    <span class="status-label">
+                        본회의 가결
+                        <i class="info-icon" data-tooltip="본회의 가결률 상세 정보">ⓘ</i>
+                    </span>
+                    <div class="status-value">-</div>
+                    <div class="tooltip-content" data-for="bill">
+                        <div>총 제안: <span class="detail-bill-total">-</span></div>
+                        <div>가결: <span class="detail-bill-approved">-</span></div>
+                        <div>폐기: <span class="detail-bill-discarded">-</span></div>
+                        <div>부결: <span class="detail-bill-rejected">-</span></div>
+                        <div>기타: <span class="detail-bill-other">-</span></div>
+                    </div>
+                </div>
+                
+                <div class="status-item">
+                    <span class="status-label">청원 제안</span>
+                    <div class="status-value">-</div>
+                </div>
+                
+                <div class="status-item">
+                    <span class="status-label">청원 결과</span>
+                    <div class="status-value">-</div>
+                </div>
+
+                <div class="status-item">
+                    <span class="status-label">위원회</span>
+                    <div class="status-value">-</div>
+                </div>
+                
+                <div class="status-item">
+                    <span class="status-label">무효표 및 기권</span>
+                    <div class="status-value">-</div>
+                </div>
+                
+                <div class="status-item">
+                    <span class="status-label">투표 결과 일치</span>
+                    <div class="status-value">-</div>
+                </div>
+                
+                <div class="status-item">
+                    <span class="status-label">투표 결과 불일치</span>
+                    <div class="status-value">-</div>
+                </div>
+            </div>
+            
+            <div class="comparison-card">
+                <div class="comparison-title">
+                    <label class="status-label">국회의원 선택</label>
+                    <div class="mp-search-container">
+                        <input type="text" class="mp-search-input" placeholder="국회의원 이름 검색">
+                        <div class="mp-search-results">
+                            <!-- 검색 결과가 여기에 동적으로 표시됩니다 -->
+                        </div>
+                    </div>
+                    
+                    <div class="mp-selected">
+                        <img src="https://raw.githubusercontent.com/moody1317/osbasicproject_4/refs/heads/main/chat.png" alt="의원 사진">
+                        <div class="mp-selected-info">
+                            <div class="mp-selected-name">국회의원을 검색하세요</div>
+                            <div class="mp-selected-party"></div>
+                        </div>
+                        <button class="mp-remove">×</button>
+                    </div>
+                </div>
+                
+                <div class="status-item">
+                    <span class="status-label">
+                        출석
+                        <i class="info-icon" data-tooltip="출석률 상세 정보">ⓘ</i>
+                    </span>
+                    <div class="status-value">-</div>
+                    <div class="tooltip-content" data-for="attendance">
+                        <div>총 회의 수: <span class="detail-total-meetings">-</span></div>
+                        <div>출석: <span class="detail-attendance">-</span></div>
+                        <div>결석: <span class="detail-absences">-</span></div>
+                        <div>청가: <span class="detail-leaves">-</span></div>
+                        <div>출장: <span class="detail-business-trips">-</span></div>
+                    </div>
+                </div>
+                
+                <div class="status-item">
+                    <span class="status-label">
+                        본회의 가결
+                        <i class="info-icon" data-tooltip="본회의 가결률 상세 정보">ⓘ</i>
+                    </span>
+                    <div class="status-value">-</div>
+                    <div class="tooltip-content" data-for="bill">
+                        <div>총 제안: <span class="detail-bill-total">-</span></div>
+                        <div>가결: <span class="detail-bill-approved">-</span></div>
+                        <div>폐기: <span class="detail-bill-discarded">-</span></div>
+                        <div>부결: <span class="detail-bill-rejected">-</span></div>
+                        <div>기타: <span class="detail-bill-other">-</span></div>
+                    </div>
+                </div>
+                
+                <div class="status-item">
+                    <span class="status-label">청원 제안</span>
+                    <div class="status-value">-</div>
+                </div>
+                
+                <div class="status-item">
+                    <span class="status-label">청원 결과</span>
+                    <div class="status-value">-</div>
+                </div>
+
+                <div class="status-item">
+                    <span class="status-label">위원회</span>
+                    <div class="status-value">-</div>
+                </div>
+                
+                <div class="status-item">
+                    <span class="status-label">무효표 및 기권</span>
+                    <div class="status-value">-</div>
+                </div>
+                
+                <div class="status-item">
+                    <span class="status-label">투표 결과 일치</span>
+                    <div class="status-value">-</div>
+                </div>
+                
+                <div class="status-item">
+                    <span class="status-label">투표 결과 불일치</span>
+                    <div class="status-value">-</div>
+                </div>
+            </div>
+        </div>
+    </div>
+    </main>
+
+    <!-- 챗봇 아이콘 -->
+    <div class="robot-icon">
+        <img src="https://raw.githubusercontent.com/moody1317/osbasicproject_4/946d8f24f9c780853862670da370ad174c3def6c/chat.png" alt="챗봇 아이콘">
+    </div>
+    
+    <!-- 챗봇 모달 -->
+    <div class="chatbot-modal" id="chatbotModal">
+        <div class="chatbot-container">
+            <div class="chatbot-header">
+                <div class="date">2025년 04월 12일 토요일</div>
+                <button class="close-button">&times;</button>
+            </div>
+            <div class="chatbot-messages" id="chatbotMessages">
+                <!-- 메시지가 여기에 추가됩니다 -->
+                <div class="message bot">
+                    <div class="bot-avatar">
+                        <img src="https://raw.githubusercontent.com/moody1317/osbasicproject_4/946d8f24f9c780853862670da370ad174c3def6c/chat.png" alt="챗봇 아바타">
+                    </div>
+                    <div class="message-content">
+                        <p>안녕하세요!</p>
+                        <p>무엇을 도와드릴까요?</p>
+                        <p class="small-text">궁금하신 내용을 선택하거나, 직접 입력해주세요</p>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="suggestion-buttons">
+                <button class="suggestion-btn">표결 정보</button>
+                <button class="suggestion-btn">청원 소개 내역</button>
+                <button class="suggestion-btn">경력</button>
+                <button class="suggestion-btn">상세 퍼센트</button>
+            </div>
+            
+            <div class="chatbot-input">
+                <input type="text" id="messageInput" placeholder="궁금하신 내용을 입력해주세요">
+                <button class="send-button">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M22 2L11 13" stroke="#AAAAAA" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                        <path d="M22 2L15 22L11 13L2 9L22 2Z" stroke="#AAAAAA" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                </button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- 외부 스크립트 연결 -->
+    <script src="global_sync.js"></script>
+    <script src="scripts.js"></script>
+    <script src="compare_member.js"></script>
+    <script src="weight_sync.js"></script>
+    
+    <footer style="margin-top: 40px; padding: 20px; font-size: 12px; color: gray; text-align: center; border-top: 1px solid #ddd; background-color: #f9f9f9;">
+        본 웹사이트는 충북대학교의 오픈소스 기초 프로젝트 과제를 위해 제작된 비상업적 프로젝트입니다.<br>
+        사용된 의원 정보 및 이미지는 열린국회정보 API를 통해 수집되었으며, 실제 정당 및 국회의원과 무관한 가상 시각화입니다.
+    </footer>
+
+</body>
+</html>

@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>백일하 - 정당 상세 페이지</title>
+    
+    <!-- 외부 스타일시트 연결-->
+    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="percent_party.css">
+</head>
+<body>
+    <!-- 헤더 시작 -->
+    <header>
+        <a href="mainpage.html" style="text-decoration: none; color: inherit;">
+            <div class="logo">
+                <img src="https://raw.githubusercontent.com/moody1317/osbasicproject_4/refs/heads/main/logo.png" alt="백일하 로고">
+            </div>
+        </a>
+    </header>
+    
+    <div class="sticky-nav-container">
+    <!-- 네비게이션 메뉴 시작 -->
+    <nav>
+        <ul>
+            <li class="has-submenu" data-submenu="party-submenu">
+                정당
+            </li>
+            <li class="has-submenu" data-submenu="member-submenu">
+                국회의원
+            </li>
+            <li class="has-submenu" data-submenu="activity-submenu">
+                의정 활동
+            </li>
+            <li class="has-submenu" data-submenu="etc-submenu">
+                기타
+            </li>
+        </ul>
+        
+        <!-- 정당 서브메뉴 -->
+        <div class="submenu-wrapper" id="party-submenu">
+            <div class="submenu-container">
+                <a href="rank_party.html" class="submenu-item">명예의 정당</a>
+                <a href="percent_party.html" class="submenu-item">정당 상세 퍼센트</a>
+                <a href="compare_party.html" class="submenu-item">정당 비교하기</a>
+            </div>
+        </div>
+        
+        <!-- 국회의원 서브메뉴 -->
+        <div class="submenu-wrapper" id="member-submenu">
+            <div class="submenu-container">
+                <a href="compare_member.html" class="submenu-item">국회의원 비교하기</a>
+                <a href="percent_member.html" class="submenu-item">국회의원 상세정보</a>
+                <a href="rank_member.html" class="submenu-item">명예의 의원</a>
+            </div>
+        </div>
+        
+        <!-- 의정 활동 서브메뉴 -->
+        <div class="submenu-wrapper" id="activity-submenu">
+            <div class="submenu-container">
+                <a href="petition.html" class="submenu-item">청원 현황</a>
+                <a href="meeting.html" class="submenu-item">본회의 현황</a>
+            </div>
+        </div>
+        
+        <!-- 기타 서브메뉴 -->
+        <div class="submenu-wrapper" id="etc-submenu">
+            <div class="submenu-container">
+                <a href="outpage.html" class="submenu-item">외부 사이트</a>
+                <a href="inquiry.html" class="submenu-item">도움말</a>
+                <a href="announcements.html" class="submenu-item">공지사항</a>
+            </div>
+        </div>
+        </nav>
+    </div>
+    
+    <main>
+        <div class="content-container">
+            <!-- 정당 헤더 섹션 -->
+            <div class="party-header">
+                <span id="party-name">더불어민주당</span>
+                <a href="https://theminjoo.kr/" target="_blank" rel="noopener noreferrer" id="party-home-link" title="정당 홈페이지 방문하기" aria-label="정당 홈페이지 방문하기">
+                    <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                        <path d="M10 20V14H14V20H19V12H22L12 3L2 12H5V20H10Z" fill="currentColor"/>
+                    </svg>
+                </a>
+                
+                <!-- 정당 선택 드롭다운 -->
+                <div class="party-selector">
+                    <div class="dropdown">
+                        <button class="dropdown-btn" aria-haspopup="true" aria-expanded="false" aria-label="정당 선택">
+                            더불어민주당
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                                <path d="M7 10l5 5 5-5z" fill="currentColor"/>
+                            </svg>
+                        </button>
+                        <div class="dropdown-content" role="menu">
+                            <a href="#" data-party="더불어민주당" role="menuitem">더불어민주당</a>
+                            <a href="#" data-party="국민의힘" role="menuitem">국민의힘</a>
+                            <a href="#" data-party="조국혁신당" role="menuitem">조국혁신당</a>
+                            <a href="#" data-party="개혁신당" role="menuitem">개혁신당</a>
+                            <a href="#" data-party="진보당" role="menuitem">진보당</a>
+                            <a href="#" data-party="기본소득당" role="menuitem">기본소득당</a>
+                            <a href="#" data-party="사회민주당" role="menuitem">사회민주당</a>
+                            <a href="#" data-party="무소속" role="menuitem">무소속</a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 차트 및 통계 컨테이너 -->
+            <div class="chart-container">
+                <!-- 파이차트 섹션 -->
+                <div class="chart-section">
+                    <div class="pie-chart" role="img" aria-label="정당 통계 파이차트">
+                        <svg viewBox="0 0 100 100" aria-hidden="true">
+                            <circle cx="50" cy="50" r="45" fill="white"/>
+                            <!-- 초기 데이터 (더불어민주당) - 9개 항목 -->
+                            <path d="M50 50 L95 50 A45 45 0 0 1 83.8 79.4 Z" fill="var(--current-party-main)" data-label="출석" data-percent="87.2"/>
+                            <path d="M50 50 L83.8 79.4 A45 45 0 0 1 61.0 92.7 Z" fill="var(--current-party-secondary)" data-label="본회의 가결" data-percent="89.1"/>
+                            <path d="M50 50 L61.0 92.7 A45 45 0 0 1 31.5 92.0 Z" fill="var(--current-party-tertiary)" data-label="청원 제안" data-percent="82.5"/>
+                            <path d="M50 50 L31.5 92.0 A45 45 0 0 1 8.2 75.4 Z" fill="var(--current-party-quaternary)" data-label="청원 결과" data-percent="74.8"/>
+                            <path d="M50 50 L8.2 75.4 A45 45 0 0 1 6.1 57.8 Z" fill="var(--current-party-quinary)" data-label="간사" data-percent="28.7"/>
+                            <path d="M50 50 L6.1 57.8 A45 45 0 0 1 5.4 53.1 Z" fill="var(--current-party-sixth)" data-label="무효표 및 기권" data-percent="5.9"/>
+                            <path d="M50 50 L5.4 53.1 A45 45 0 0 1 9.8 34.0 Z" fill="var(--current-party-seventh)" data-label="위원장" data-percent="18.7"/>
+                            <path d="M50 50 L9.8 34.0 A45 45 0 0 1 66.5 7.3 Z" fill="var(--current-party-eighth)" data-label="투표 결과 일치" data-percent="91.3"/>
+                            <path d="M50 50 L66.5 7.3 A45 45 0 0 1 95 50 Z" fill="var(--current-party-ninth)" data-label="투표 결과 불일치" data-percent="8.7"/>
+                        </svg>
+                        <div class="tooltip" id="chart-tooltip" role="tooltip" aria-live="polite"></div>
+                    </div>
+                </div>
+                
+                <!-- 통계 섹션 -->
+                <div class="statistics-section">
+                    <h3>더불어민주당 통계</h3>
+                    <div class="stats-item">
+                        <span class="label">출석</span>
+                        <span class="value">87.2%</span>
+                    </div>
+                    <div class="stats-item">
+                        <span class="label">본회의 가결</span>
+                        <span class="value">89.1%</span>
+                    </div>
+                    <div class="stats-item">
+                        <span class="label">청원 제안</span>
+                        <span class="value">82.5%</span>
+                    </div>
+                    <div class="stats-item">
+                        <span class="label">청원 결과</span>
+                        <span class="value">74.8%</span>
+                    </div>
+                    <div class="stats-item">
+                        <span class="label">간사</span>
+                        <span class="value">28.7%</span>
+                    </div>
+                    <div class="stats-item">
+                        <span class="label">무효표 및 기권</span>
+                        <span class="value">5.9%</span>
+                    </div>
+                    <div class="stats-item">
+                        <span class="label">위원장</span>
+                        <span class="value">18.7%</span>
+                    </div>
+                    <div class="stats-item">
+                        <span class="label">투표 결과 일치</span>
+                        <span class="value">91.3%</span>
+                    </div>
+                    <div class="stats-item">
+                        <span class="label">투표 결과 불일치</span>
+                        <span class="value">8.7%</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- API 상태 메시지 영역 (필요시 JavaScript에서 동적 생성) -->
+            <div id="api-status" class="api-status" style="display: none;" role="status" aria-live="polite"></div>
+        </div>
+    </main>
+    
+    <!-- 챗봇 아이콘 -->
+    <div class="robot-icon" role="button" tabindex="0" aria-label="챗봇 열기" title="챗봇과 대화하기">
+        <img src="https://raw.githubusercontent.com/moody1317/osbasicproject_4/946d8f24f9c780853862670da370ad174c3def6c/chat.png" alt="챗봇 아이콘" loading="lazy">
+    </div>
+    
+    <!-- 챗봇 모달 -->
+    <div class="chatbot-modal" id="chatbotModal" role="dialog" aria-labelledby="chatbot-title" aria-modal="true">
+        <div class="chatbot-container">
+            <div class="chatbot-header">
+                <div class="date" id="chatbot-title">2025년 06월 06일 금요일</div>
+                <button class="close-button" aria-label="챗봇 닫기" title="챗봇 닫기">&times;</button>
+            </div>
+            <div class="chatbot-messages" id="chatbotMessages" role="log" aria-live="polite" aria-label="챗봇 대화 내역">
+                <!-- 초기 메시지 (JavaScript에서 동적으로 추가됨) -->
+            </div>
+            
+            <div class="suggestion-buttons" role="group" aria-label="추천 질문">
+                <button class="suggestion-btn" data-suggestion="표결 정보">표결 정보</button>
+                <button class="suggestion-btn" data-suggestion="청원 소개 내역">청원 소개 내역</button>
+                <button class="suggestion-btn" data-suggestion="경력">경력</button>
+                <button class="suggestion-btn" data-suggestion="상세 퍼센트">상세 퍼센트</button>
+            </div>
+            
+            <div class="chatbot-input">
+                <label for="messageInput" class="sr-only">챗봇에게 메시지 입력</label>
+                <input type="text" id="messageInput" placeholder="궁금하신 내용을 입력해주세요" aria-describedby="input-help">
+                <button class="send-button" aria-label="메시지 전송" title="메시지 전송">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                        <path d="M22 2L11 13" stroke="#AAAAAA" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                        <path d="M22 2L15 22L11 13L2 9L22 2Z" stroke="#AAAAAA" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                </button>
+            </div>
+            <div id="input-help" class="sr-only">Enter 키를 눌러서 메시지를 전송할 수 있습니다</div>
+        </div>
+    </div>
+    
+    <!-- 스크린 리더용 숨겨진 텍스트 -->
+    <div class="sr-only">
+        <p>이 페이지는 정당별 상세 통계를 시각화하여 보여줍니다. 파이차트와 수치 데이터로 구성되어 있습니다.</p>
+    </div>
+
+    <!-- 접근성을 위한 스크린 리더 전용 CSS -->
+    <style>
+        .sr-only {
+            position: absolute;
+            width: 1px;
+            height: 1px;
+            padding: 0;
+            margin: -1px;
+            overflow: hidden;
+            clip: rect(0, 0, 0, 0);
+            white-space: nowrap;
+            border: 0;
+        }
+
+        .api-status {
+            margin: 20px 0;
+            padding: 12px 16px;
+            border-radius: 8px;
+            text-align: center;
+            font-size: 14px;
+        }
+
+        .api-status.success {
+            background-color: #f0fdf4;
+            border: 1px solid #bbf7d0;
+            color: #166534;
+        }
+
+        .api-status.error {
+            background-color: #fef2f2;
+            border: 1px solid #fecaca;
+            color: #dc2626;
+        }
+
+        .api-status.warning {
+            background-color: #fffbeb;
+            border: 1px solid #fed7aa;
+            color: #d97706;
+        }
+
+        .api-status.info {
+            background-color: #eff6ff;
+            border: 1px solid #dbeafe;
+            color: #1d4ed8;
+        }
+    </style>
+    
+    <!-- 외부 스크립트 연결 -->
+    <script src="global_sync.js"></script>
+    <script src="scripts.js"></script>
+    <script src="percent_party.js"></script>
+    <script src="weight_sync.js"></script>
+
+    <!-- 푸터 -->
+    <footer>
+        본 웹사이트는 충북대학교의 오픈소스 기초 프로젝트 과제를 위해 제작된 비상업적 프로젝트입니다.<br>
+        사용된 의원 정보 및 이미지는 열린국회정보 API를 통해 수집되었으며, 실제 정당 및 국회의원과 무관한 가상 시각화입니다.<br>
+    </footer>
+
+</body>
+</html>

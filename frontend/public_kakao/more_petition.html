@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>백일하 - 청원 상세 정보</title>
+    <!-- 외부 스타일시트 연결 -->
+    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="more_petition.css">
+</head>
+<body>
+    <!-- 헤더 시작 -->
+    <header>
+        <!-- 로고 -->
+        <a href="mainpage.html" style="text-decoration: none; color: inherit;">
+            <div class="logo">
+                <img src="https://raw.githubusercontent.com/moody1317/osbasicproject_4/refs/heads/main/logo.png" alt="백일하 로고">
+            </div>
+        </a>
+    </header>
+    
+    <div class="sticky-nav-container">
+    <!-- 네비게이션 메뉴 시작 -->
+    <nav>
+        <ul>
+            <li class="has-submenu" data-submenu="party-submenu">
+                정당
+            </li>
+            <li class="has-submenu" data-submenu="member-submenu">
+                국회의원
+            </li>
+            <li class="has-submenu" data-submenu="activity-submenu">
+                의정 활동
+            </li>
+            <li class="has-submenu" data-submenu="etc-submenu">
+                기타
+            </li>
+        </ul>
+        
+        <!-- 정당 서브메뉴 -->
+        <div class="submenu-wrapper" id="party-submenu">
+            <div class="submenu-container">
+                <a href="rank_party.html" class="submenu-item">명예의 정당</a>
+                <a href="percent_party.html" class="submenu-item">정당 상세 퍼센트</a>
+                <a href="compare_party.html" class="submenu-item">정당 비교하기</a>
+            </div>
+        </div>
+        
+        <!-- 국회의원 서브메뉴 -->
+        <div class="submenu-wrapper" id="member-submenu">
+            <div class="submenu-container">
+                <a href="compare_member.html" class="submenu-item">국회의원 비교하기</a>
+                <a href="percent_member.html" class="submenu-item">국회의원 상세정보</a>
+                <a href="rank_member.html" class="submenu-item">명예의 의원</a>
+            </div>
+        </div>
+        
+        <!-- 의정 활동 서브메뉴 -->
+        <div class="submenu-wrapper" id="activity-submenu">
+            <div class="submenu-container">
+                <a href="petition.html" class="submenu-item">청원 현황</a>
+                <a href="meeting.html" class="submenu-item">본회의 현황</a>
+            </div>
+        </div>
+        
+        <!-- 기타 서브메뉴 -->
+        <div class="submenu-wrapper" id="etc-submenu">
+            <div class="submenu-container">
+                <a href="outpage.html" class="submenu-item">외부 사이트</a>
+                <a href="inquiry.html" class="submenu-item">도움말</a>
+                <a href="announcements.html" class="submenu-item">공지사항</a>
+            </div>
+        </div>
+    </nav>
+    </div>
+    
+    <main class="container">
+        <div class="content">
+
+            <!-- 청원 제목 -->
+            <div class="petition-title">
+                <h1 id="petitionTitle">API 서비스 연결 중...</h1>
+                <a href="#" class="home-icon" title="청원 목록으로 돌아가기">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M12 2.1L1 12h3v9h7v-6h2v6h7v-9h3L12 2.1zm0 2.691l6 5.4V19h-3v-6H9v6H6v-8.809l6-5.4z"/>
+                    </svg>
+                </a>
+            </div>
+            
+            <!-- 진행 단계 -->
+            <div class="progress-container">
+                <div class="progress-title">
+                    심사 진행 단계
+                </div>
+                <div class="progress-steps">
+                    <div class="step active" data-step="1">접수</div>
+                    <div class="arrow">&gt;</div>
+                    <div class="step" data-step="2">위원회 심사</div>
+                    <div class="arrow">&gt;</div>
+                    <div class="step" data-step="3">본회의 심의</div>
+                    <div class="arrow">&gt;</div>
+                    <div class="step" data-step="4">정부 이송</div>
+                    <div class="arrow">&gt;</div>
+                    <div class="step" data-step="5">처리 통지</div>
+                </div>
+            </div>
+            
+            <!-- 청원 접수 정보 -->
+            <div class="info-section">
+                <div class="info-title">청원 접수 정보</div>
+                <div class="info-table">
+                    <div class="table-row">
+                        <div class="table-cell">청원 접수 번호</div>
+                        <div class="table-cell" id="petitionNumber">로딩 중...</div>
+                    </div>
+                    <div class="table-row">
+                        <div class="table-cell">접수일</div>
+                        <div class="table-cell" id="receiptDate">로딩 중...</div>
+                    </div>
+                    <div class="table-row">
+                        <div class="table-cell">소개의원</div>
+                        <div class="table-cell" id="introducerMember">로딩 중...</div>
+                    </div>
+                    <div class="table-row">
+                        <div class="table-cell">제안 회기</div>
+                        <div class="table-cell" id="sessionInfo">로딩 중...</div>
+                    </div>
+                    <div class="table-row">
+                        <div class="table-cell">처리상태</div>
+                        <div class="table-cell">
+                            <span class="status-badge" id="statusBadge">로딩 중...</span>
+                        </div>
+                    </div>
+                    <div class="table-row">
+                        <div class="table-cell">소관위원회</div>
+                        <div class="table-cell" id="committee">로딩 중...</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+    
+    <!-- 챗봇 아이콘 -->
+    <div class="robot-icon">
+        <img src="https://raw.githubusercontent.com/moody1317/osbasicproject_4/946d8f24f9c780853862670da370ad174c3def6c/chat.png" alt="챗봇 아이콘">
+    </div>
+    
+    <!-- 챗봇 모달 -->
+    <div class="chatbot-modal" id="chatbotModal">
+        <div class="chatbot-container">
+            <div class="chatbot-header">
+                <div class="date">2025년 06월 05일 목요일</div>
+                <button class="close-button">&times;</button>
+            </div>
+            <div class="chatbot-messages" id="chatbotMessages">
+                <!-- 메시지가 여기에 추가됩니다 -->
+            </div>
+            
+            <div class="suggestion-buttons">
+                <button class="suggestion-btn">이 청원의 상태</button>
+                <button class="suggestion-btn">소관위원회 정보</button>
+                <button class="suggestion-btn">청원 처리 절차</button>
+                <button class="suggestion-btn">유사 청원 검색</button>
+            </div>
+            
+            <div class="chatbot-input">
+                <input type="text" id="messageInput" placeholder="이 청원에 대해 궁금한 내용을 입력해주세요">
+                <button class="send-button">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M22 2L11 13" stroke="#AAAAAA" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                        <path d="M22 2L15 22L11 13L2 9L22 2Z" stroke="#AAAAAA" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                </button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- 외부 스크립트 연결 -->
+    <script src="global_sync.js"></script>
+    <script src="scripts.js"></script>
+    <script src="more_petition.js"></script>
+
+    <footer style="margin-top: 40px; padding: 20px; font-size: 12px; color: gray; text-align: center; border-top: 1px solid #ddd; background-color: #f9f9f9;">
+        본 웹사이트는 충북대학교의 오픈소스 기초 프로젝트 과제를 위해 제작된 비상업적 프로젝트입니다.<br>
+        사용된 의원 정보 및 이미지는 열린국회정보 API를 통해 수집되었으며, 실제 정당 및 국회의원과 무관한 가상 시각화입니다.
+    </footer>
+
+</body>
+</html>

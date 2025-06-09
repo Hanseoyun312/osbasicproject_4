@@ -1,0 +1,531 @@
+/* 청원 현황 페이지 스타일 */
+.content-container {
+    width: 100%;
+    padding: 20px 0;
+    max-width: 1200px;
+    margin: 0 auto;
+}
+
+.page-title {
+    text-align: center;
+    font-size: 36px;
+    font-weight: 600;
+    margin-bottom: 40px;
+}
+
+/* 검색 및 필터 섹션 */
+.search-filter-section {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 30px;
+    gap: 20px;
+}
+
+.search-box {
+    display: flex;
+    border: 1px solid var(--side2);
+    border-radius: 50px;
+    overflow: hidden;
+    background-color: var(--main2);
+    box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+    flex: 1;
+    max-width: 500px;
+}
+
+.search-input {
+    flex: 1;
+    padding: 10px 20px;
+    border: none;
+    outline: none;
+    font-size: 14px;
+    font-family: 'Blinker', sans-serif;
+    background-color: transparent;
+}
+
+.search-button {
+    background: none;
+    border: none;
+    padding: 0 20px;
+    cursor: pointer;
+    transition: background-color 0.2s;
+    background-color: transparent;
+    color: var(--string);
+    display: flex;
+    align-items: center;
+}
+
+.search-button:hover {
+    background-color: #e8f2ff;
+}
+
+/* 필터 버튼 */
+.filter-options {
+    display: flex;
+    gap: 10px;
+}
+
+.filter-select {
+    padding: 8px 15px;
+    border: 1px solid var(--side2);
+    border-radius: 5px;
+    background-color: white;
+    cursor: pointer;
+    font-size: 14px;
+    font-family: 'Blinker', sans-serif;
+    outline: none;
+    transition: border-color 0.2s;
+}
+
+.filter-select:hover {
+    border-color: var(--light-blue);
+}
+
+.filter-select:focus {
+    border-color: var(--light-blue);
+}
+
+/* 청원 정보 */
+.petition-info {
+    margin-bottom: 20px;
+    font-size: 16px;
+    color: var(--example);
+}
+
+.petition-info span {
+    font-weight: 600;
+    color: var(--string);
+}
+
+/* 청원 목록 */
+.content-container {
+    padding: 20px 0;
+    max-width: 1200px;
+    margin: 0 auto;
+}
+
+.bill-list {
+    background-color: white;
+    border-radius: 10px;
+    padding: 30px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+    margin: 20px 0;
+    overflow-x: auto;
+}
+
+/* 테이블 스타일 */
+.bill-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.bill-table thead {
+    background-color: var(--main1);
+}
+
+.bill-table th {
+    padding: 15px 10px;
+    text-align: left;
+    font-weight: 600;
+    color: var(--string);
+    border-bottom: 2px solid var(--side2);
+}
+
+.bill-table th:first-child {
+    text-align: center;
+}
+
+.bill-table tbody tr {
+    border-bottom: 1px solid #f0f0f0;
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+
+.bill-table tbody tr:hover {
+    background-color: var(--main2);
+}
+
+.bill-table tbody tr.status-complete {
+    background-color: rgba(232, 245, 233, 0.3);
+    border-left: 4px solid #4caf50;
+}
+
+.bill-table tbody tr.status-rejected {
+    background-color: rgba(255, 235, 238, 0.3);
+    border-left: 4px solid #f44336;
+}
+
+.bill-table tbody tr.status-disapproved {
+    background-color: rgba(251, 233, 231, 0.3);
+    border-left: 4px solid #d84315;
+}
+
+.bill-table tbody tr.status-plenary-not-referred {
+    background-color: rgba(255, 243, 224, 0.3);
+    border-left: 4px solid #f57c00;
+}
+
+.bill-table tbody tr.status-withdrawn {
+    background-color: rgba(245, 245, 245, 0.3);
+    border-left: 4px solid #757575;
+}
+
+.bill-table td {
+    padding: 15px 10px;
+    color: var(--string);
+}
+
+.bill-table td:first-child {
+    text-align: center;
+    font-weight: 500;
+}
+
+.petition-title {
+    color: var(--string);
+    text-decoration: none;
+    transition: color 0.2s;
+    cursor: pointer;
+    display: block;
+    max-width: 380px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    line-height: 1.4;
+    font-weight: 500;
+}
+
+.committee-name {
+    max-width: 160px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    line-height: 1.4;
+}
+
+.member-link {
+    color: var(--string);
+    text-decoration: none;
+    transition: color 0.2s;
+    cursor: pointer;
+}
+
+/* 상태별 뱃지 색상 (모든 상태 포함) */
+.status-badge.pending {
+    background-color: #e3f2fd;
+    color: #1976d2;
+}
+
+.status-badge.review {
+    background-color: #fff8e1;
+    color: #f9a825;
+}
+
+.status-badge.committee {
+    background-color: #f3e5f5;
+    color: #7b1fa2;
+}
+
+.status-badge.complete {
+    background-color: #e8f5e9;
+    color: #388e3c;
+}
+
+.status-badge.disapproved {
+    background-color: #fbe9e7;
+    color: #d84315;
+}
+
+.status-badge.rejected {
+    background-color: #ffebee;
+    color: #c62828;
+}
+
+.status-badge.plenary-not-referred {
+    background-color: #fff3e0;
+    color: #f57c00;
+}
+
+.status-badge.withdrawn {
+    background-color: #f5f5f5;
+    color: #757575;
+}
+
+/* API 연결 관련 상태 스타일 */
+.loading-state {
+    text-align: center;
+    padding: 40px;
+    color: var(--example);
+    animation: pulse 1.5s ease-in-out infinite alternate;
+}
+
+.error-state {
+    text-align: center;
+    padding: 40px;
+    color: #f44336;
+}
+
+.empty-state {
+    text-align: center;
+    padding: 40px;
+    color: var(--example);
+}
+
+.retry-button {
+    padding: 8px 16px;
+    border: 1px solid var(--light-blue);
+    background: white;
+    color: var(--light-blue);
+    border-radius: 5px;
+    cursor: pointer;
+    transition: all 0.2s;
+    font-family: 'Blinker', sans-serif;
+    margin-top: 10px;
+}
+
+.retry-button:hover {
+    background: var(--light-blue);
+    color: white;
+}
+
+@keyframes pulse {
+    from { opacity: 0.6; }
+    to { opacity: 1; }
+}
+
+/* 환경별 알림 개선 */
+.api-notification {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    background: var(--main1);
+    padding: 12px 20px;
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    z-index: 10000;
+    font-size: 13px;
+    max-width: 350px;
+    font-family: 'Courier New', monospace;
+}
+
+.api-notification.success {
+    background: #4caf50;
+    color: white;
+}
+
+.api-notification.error {
+    background: #f44336;
+    color: white;
+}
+
+.api-notification.warning {
+    background: #ff9800;
+    color: white;
+}
+
+/* 반응형 디자인 */
+@media screen and (max-width: 1024px) {
+    .content-container {
+        padding: 20px 15px;
+    }
+
+    .page-title {
+        font-size: 32px;
+        margin-bottom: 35px;
+    }
+
+    .search-filter-section {
+        gap: 15px;
+        margin-bottom: 25px;
+    }
+    
+    .search-box {
+        max-width: 450px;
+    }
+    
+    .filter-options {
+        gap: 8px;
+    }
+
+    .filter-select {
+        font-size: 13px;
+        padding: 7px 12px;
+    }
+    
+    .bill-list {
+        padding: 25px 20px;
+        margin: 15px 0;
+    }
+    
+    .bill-table th,
+    .bill-table td {
+        padding: 12px 8px;
+    }
+    
+    .petition-title {
+        max-width: 320px;
+    }
+    
+    .committee-name {
+        max-width: 140px;
+    }
+
+    .api-notification {
+        max-width: 300px;
+        font-size: 12px;
+        padding: 10px 16px;
+    }
+}
+
+@media screen and (max-width: 768px) {
+    .content-container {
+        padding: 20px 10px;
+    }
+
+    .page-title {
+        font-size: 24px;
+        margin-bottom: 30px;
+    }
+    
+    .search-filter-section {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    
+    .search-box {
+        max-width: 100%;
+    }
+    
+    .filter-options {
+        justify-content: center;
+        flex-wrap: wrap;
+    }
+    
+    .filter-select {
+        font-size: 12px;
+        padding: 6px 10px;
+    }
+    
+    .petition-info {
+        font-size: 14px;
+    }
+    
+    .bill-list {
+        padding: 20px 15px;
+        border-radius: 5px;
+        margin: 15px 0;
+    }
+    
+    .bill-table {
+        font-size: 14px;
+    }
+    
+    .bill-table th,
+    .bill-table td {
+        padding: 10px 5px;
+    }
+    
+    .bill-table th:nth-child(3),
+    .bill-table td:nth-child(3),
+    .bill-table th:nth-child(4),
+    .bill-table td:nth-child(4),
+    .bill-table th:nth-child(5),
+    .bill-table td:nth-child(5) {
+        display: none;
+    }
+    
+    .petition-title {
+        white-space: normal;
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+        line-height: 1.4;
+        max-width: none;
+    }
+
+    .api-notification {
+        top: 10px;
+        right: 10px;
+        left: 10px;
+        max-width: none;
+    }
+}
+
+@media screen and (max-width: 576px) {
+    .content-container {
+        padding: 15px 5px;
+    }
+    
+    .page-title {
+        font-size: 24px;
+        margin-bottom: 25px;
+    }
+
+    .search-input {
+        padding: 8px 15px;
+        font-size: 13px;
+    }
+    
+    .search-button {
+        padding: 0 15px;
+    }
+    
+    .filter-options {
+        flex-direction: column;
+        width: 100%;
+        gap: 5px;
+    }
+    
+    .filter-select {
+        width: 100%;
+        text-align: center;
+    }
+    
+    .petition-info {
+        font-size: 13px;
+        margin-bottom: 15px;
+    }
+    
+    .bill-list {
+        padding: 15px 10px;
+        border-radius: 0;
+        margin: 10px 0;
+    }
+
+    .bill-table {
+        font-size: 12px;
+    }
+    
+    .bill-table th,
+    .bill-table td {
+        padding: 8px 3px;
+    }
+
+    .bill-table th:nth-child(3),
+    .bill-table td:nth-child(3),
+    .bill-table th:nth-child(4),
+    .bill-table td:nth-child(4),
+    .bill-table th:nth-child(5),
+    .bill-table td:nth-child(5),
+    .bill-table th:nth-child(7),
+    .bill-table td:nth-child(7) {
+        display: none;
+    }
+
+    .status-badge {
+        font-size: 11px;
+        padding: 3px 8px;
+    }
+    
+    .petition-title {
+        font-size: 12px;
+        line-height: 1.3;
+    }
+
+    .loading-state,
+    .error-state,
+    .empty-state {
+        padding: 30px 15px;
+        font-size: 13px;
+    }
+}
