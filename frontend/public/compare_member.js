@@ -1294,6 +1294,22 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
 
+// 복원 함수수
+function restoreWeightsFromStorage() {
+    const saved = localStorage.getItem('user_weights');
+    if (saved) {
+        try {
+            const weights = JSON.parse(saved);
+            document.querySelectorAll('.weight-input').forEach(input => {
+                const key = input.dataset.weight;
+                if (weights.hasOwnProperty(key)) {
+                    input.value = weights[key];
+                }
+            });
+        } catch (e) {}
+    }
+}
+
 // 🎯 가중치 적용 및 동기화 (무한루프 방지 개선)
 async function applyWeightsAndSync() {
     // 🔧 중복 처리 방지

@@ -500,7 +500,8 @@ function initializePercentSync() {
     });
 
     // input이 완전히 렌더링된 후 복원 (500ms 지연)
-    setTimeout(restoreWeightsFromLocalStorage, 500);
+   // setTimeout(restoreWeightsFromLocalStorage, 500);
+   restoreWeightsFromLocalStorage();
 
     // 복원 후 반드시 updateTotal() 호출 (UI/상태 동기화)
     updateTotal();
@@ -524,8 +525,8 @@ function initializePercentSync() {
     }, 1000);
 
     // [패치] 외부 동기화/초기화 이후에도 localStorage 값이 최종 반영되도록 1초 후 한 번 더 복원
-    setTimeout(restoreWeightsFromLocalStorage, 1000);
+    // setTimeout(restoreWeightsFromLocalStorage, 1000);
 }
 
 document.addEventListener('DOMContentLoaded', initializePercentSync);
-window.addEventListener('load', restoreWeightsFromLocalStorage);
+// window.addEventListener('load', restoreWeightsFromLocalStorage);
