@@ -1,0 +1,669 @@
+/* 본회의 상세 페이지 전용 스타일 */
+.content-container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 40px 20px;
+}
+
+/* 법안 제목 스타일 (API 연결 대응) */
+.bill-title {
+    font-size: 20px;
+    font-weight: 600;
+    margin: 40px 0 30px;
+    position: relative;
+    color: var(--string);
+}
+
+.home-icon {
+    position: absolute;
+    right: 0;
+    top: 50%;
+    transform: translateY(-50%);
+}
+
+.home-icon svg {
+    width: 24px;
+    height: 24px;
+    color: var(--example);
+    cursor: pointer;
+    transition: color 0.2s;
+}
+
+.home-icon:hover svg {
+    color: var(--light-blue);
+}
+
+/* API 연결 상태 관련 스타일 */
+.loading-state {
+    color: var(--example);
+    animation: pulse 1.5s ease-in-out infinite alternate;
+}
+
+.error-state {
+    background: #ffebee;
+    color: #c62828;
+    padding: 20px;
+    border-radius: 8px;
+    margin: 20px 0;
+    text-align: center;
+    border: 1px solid #ffcdd2;
+}
+
+.error-state h3 {
+    margin: 0 0 10px 0;
+    font-size: 18px;
+}
+
+.error-state p {
+    margin: 0 0 15px 0;
+}
+
+.error-state button {
+    background: #c62828;
+    color: white;
+    border: none;
+    padding: 8px 16px;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+
+.error-state button:hover {
+    background: #b71c1c;
+}
+
+@keyframes pulse {
+    from { opacity: 0.6; }
+    to { opacity: 1; }
+}
+
+/* 진행 단계 스타일 */
+.progress-container {
+    background-color: var(--main2);
+    border-radius: 8px;
+    padding: 50px 30px 40px;
+    margin: 30px 0;
+    position: relative;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+}
+
+.progress-title {
+    font-size: 18px;
+    font-weight: 600;
+    position: absolute;
+    top: 20px;
+    left: 30px;
+    color: var(--string);
+}
+
+.progress-steps {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    margin-top: 20px;
+}
+
+.step {
+    width: 20%;
+    text-align: center;
+    padding: 15px 10px;
+    background-color: white;
+    border: 1px solid var(--side2);
+    color: var(--string);
+    font-size: 14px;
+    position: relative;
+    border-radius: 5px;
+    transition: all 0.3s ease;
+    font-weight: 500;
+}
+
+.arrow {
+    margin: 0 10px;
+    color: var(--example);
+    font-size: 20px;
+    font-weight: bold;
+}
+
+.step.active {
+    background-color: var(--light-blue);
+    color: white;
+    border-color: var(--light-blue);
+}
+
+/* 정보 섹션 스타일 */
+.info-section {
+    margin: 40px 0;
+    background-color: white;
+    border-radius: 8px;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+    overflow: hidden;
+}
+
+.info-title {
+    font-size: 18px;
+    font-weight: 600;
+    padding: 20px 25px;
+    border-bottom: 2px solid var(--side2);
+    color: var(--string);
+    position: relative;
+}
+
+.info-title::after {
+    content: '';
+    position: absolute;
+    right: 25px;
+    top: 50%;
+    transform: translateY(-50%) rotate(45deg);
+    width: 8px;
+    height: 8px;
+    border-top: 2px solid var(--light-blue);
+    border-right: 2px solid var(--light-blue);
+}
+
+.info-title.collapsed::after {
+    transform: translateY(-50%) rotate(-135deg);
+}
+
+/* 테이블 스타일 */
+.info-table {
+    display: table;
+    width: 100%;
+    border-collapse: collapse;
+    border-spacing: 0;
+}
+
+.table-row {
+    display: table-row;
+}
+
+.table-row:hover {
+    background-color: var(--main2);
+}
+
+.table-cell {
+    display: table-cell;
+    padding: 15px 25px;
+    border-bottom: 1px solid var(--side2);
+    vertical-align: middle;
+    transition: background-color 0.2s;
+}
+
+.table-cell:first-child {
+    width: 25%;
+    background-color: var(--main2);
+    font-weight: 500;
+    color: var(--string);
+}
+
+.table-row:last-child .table-cell {
+    border-bottom: none;
+}
+
+/* 투표 정보 스타일 */
+.vote-info {
+    padding: 25px;
+}
+
+/* 투표 안내 문구 스타일 */
+.vote-notice {
+    display: flex;
+    align-items: flex-start;
+    gap: 15px;
+    padding: 20px;
+    background-color: #f8f9fa;
+    border: 1px solid #dee2e6;
+    border-radius: 8px;
+    margin-bottom: 25px;
+}
+
+.notice-icon {
+    font-size: 24px;
+    flex-shrink: 0;
+}
+
+.notice-text {
+    flex: 1;
+}
+
+.notice-text p {
+    margin: 0;
+    color: var(--string);
+}
+
+.notice-text p:first-child {
+    font-weight: 600;
+    margin-bottom: 5px;
+}
+
+.notice-text p:last-child {
+    font-size: 14px;
+    color: #6c757d;
+}
+
+.vote-summary {
+    margin-bottom: 30px;
+}
+
+.vote-result {
+    display: flex;
+    justify-content: space-around;
+    gap: 20px;
+    margin-bottom: 25px;
+}
+
+.vote-item {
+    text-align: center;
+    padding: 20px;
+    border-radius: 10px;
+    flex: 1;
+    min-width: 80px;
+}
+
+.vote-item.vote-passed {
+    background-color: #e8f5e9;
+    border: 2px solid #4caf50;
+}
+
+.vote-item.vote-rejected {
+    background-color: #ffebee;
+    border: 2px solid #f44336;
+}
+
+.vote-item.vote-abstain {
+    background-color: #fff3e0;
+    border: 2px solid #ff9800;
+}
+
+.vote-item.vote-absent {
+    background-color: #f5f5f5;
+    border: 2px solid #9e9e9e;
+}
+
+.vote-label {
+    font-size: 14px;
+    font-weight: 500;
+    margin-bottom: 8px;
+    color: var(--string);
+}
+
+.vote-count {
+    font-size: 24px;
+    font-weight: 700;
+    color: var(--string);
+}
+
+.vote-details {
+    border: 1px solid var(--side2);
+    border-radius: 8px;
+    margin-bottom: 30px;
+}
+
+.vote-detail-row {
+    display: flex;
+    justify-content: space-between;
+    padding: 12px 20px;
+    border-bottom: 1px solid var(--side2);
+}
+
+.vote-detail-row:last-child {
+    border-bottom: none;
+}
+
+.detail-label {
+    font-weight: 500;
+    color: var(--string);
+}
+
+.detail-value {
+    font-weight: 600;
+    color: var(--light-blue);
+}
+
+.party-vote-section {
+    margin-top: 25px;
+}
+
+.party-vote-title {
+    font-size: 16px;
+    font-weight: 600;
+    margin-bottom: 15px;
+    color: var(--string);
+}
+
+.party-votes {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.party-vote-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 15px 20px;
+    background-color: var(--main2);
+    border-radius: 8px;
+    border: 1px solid var(--side2);
+}
+
+.party-name {
+    font-weight: 600;
+    color: var(--string);
+    min-width: 120px;
+}
+
+.party-vote-counts {
+    display: flex;
+    gap: 15px;
+}
+
+.party-vote {
+    padding: 4px 10px;
+    border-radius: 12px;
+    font-size: 12px;
+    font-weight: 500;
+}
+
+.party-vote-for {
+    background-color: #e8f5e9;
+    color: #2e7d32;
+}
+
+.party-vote-against {
+    background-color: #ffebee;
+    color: #c62828;
+}
+
+.party-vote-abstain {
+    background-color: #fff3e0;
+    color: #f57c00;
+}
+
+/* 반응형 디자인 */
+@media screen and (max-width: 1024px) {
+    .content-container {
+        padding: 30px 15px;
+    }
+
+    .bill-title {
+        font-size: 19px;
+        margin: 35px 0 25px;
+        padding-right: 70px;
+    }
+
+    .home-icon {
+        right: 40px;
+    }
+
+    .progress-container {
+        padding: 45px 25px 35px;
+    }
+
+    .progress-title {
+        font-size: 17px;
+        top: 18px;
+        left: 25px;
+    }
+
+    .vote-result {
+        gap: 15px;
+    }
+
+    .vote-item {
+        padding: 18px;
+    }
+}
+
+@media screen and (max-width: 768px) {
+    .content-container {
+        padding: 20px 15px;
+    }
+    
+    .bill-title {
+        font-size: 18px;
+        margin: 30px 0 20px;
+        padding-right: 60px;
+    }
+
+    .bill-title button {
+        font-size: 10px !important;
+        padding: 3px 6px !important;
+        right: 35px !important;
+    }
+    
+    .home-icon {
+        right: 5px;
+    }
+    
+    .progress-container {
+        padding: 40px 20px 30px;
+    }
+    
+    .progress-title {
+        font-size: 16px;
+        top: 15px;
+        left: 20px;
+    }
+    
+    .progress-steps {
+        flex-wrap: wrap;
+        gap: 10px;
+    }
+    
+    .step {
+        width: 45%;
+        margin-bottom: 10px;
+        font-size: 13px;
+    }
+    
+    .arrow {
+        display: none;
+    }
+    
+    .info-title {
+        font-size: 16px;
+        padding: 15px 20px;
+    }
+    
+    .table-cell {
+        padding: 12px 20px;
+        font-size: 14px;
+    }
+    
+    .table-cell:first-child {
+        width: 35%;
+    }
+    
+    .vote-result {
+        flex-wrap: wrap;
+        gap: 10px;
+    }
+    
+    .vote-item {
+        flex: 1 1 45%;
+        min-width: 120px;
+        padding: 15px;
+    }
+    
+    .party-vote-item {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 10px;
+    }
+    
+    .party-vote-counts {
+        align-self: stretch;
+        justify-content: space-between;
+    }
+    
+    .vote-notice {
+        flex-direction: column;
+        text-align: center;
+        gap: 10px;
+        padding: 15px;
+    }
+}
+
+@media screen and (max-width: 576px) {
+    .content-container {
+        padding: 15px 10px;
+    }
+
+    .bill-title {
+        font-size: 16px;
+        padding-right: 50px;
+        margin: 25px 0 15px;
+    }
+
+    .bill-title button {
+        font-size: 9px !important;
+        padding: 2px 4px !important;
+        right: 30px !important;
+    }
+    
+    .home-icon {
+        right: 0;
+    }
+
+    .progress-container {
+        padding: 30px 15px 20px;
+    }
+
+    .progress-title {
+        font-size: 14px;
+        top: 10px;
+        left: 15px;
+    }
+    
+    .step {
+        width: 100%;
+        font-size: 12px;
+        padding: 12px 8px;
+    }
+
+    .info-title {
+        font-size: 15px;
+        padding: 12px 15px;
+    }
+    
+    .table-cell {
+        display: block;
+        width: 100% !important;
+        padding: 10px 15px;
+    }
+    
+    .table-cell:first-child {
+        background-color: var(--main2);
+        border-bottom: none;
+        font-weight: 600;
+    }
+    
+    .table-row {
+        display: block;
+        margin-bottom: 10px;
+        border: 1px solid var(--side2);
+        border-radius: 5px;
+        overflow: hidden;
+    }
+    
+    .vote-result {
+        flex-direction: column;
+        gap: 10px;
+    }
+    
+    .vote-item {
+        flex: none;
+        padding: 12px;
+    }
+    
+    .vote-count {
+        font-size: 20px;
+    }
+    
+    .party-vote-counts {
+        flex-wrap: wrap;
+        gap: 8px;
+    }
+    
+    .party-vote {
+        font-size: 11px;
+        padding: 3px 8px;
+    }
+    
+    .vote-notice {
+        padding: 12px;
+        margin-bottom: 15px;
+    }
+    
+    .notice-text p:first-child {
+        font-size: 14px;
+    }
+    
+    .notice-text p:last-child {
+        font-size: 12px;
+    }
+
+    .vote-info {
+        padding: 15px;
+    }
+
+    .error-state {
+        padding: 15px;
+        margin: 15px 0;
+    }
+
+    .error-state h3 {
+        font-size: 16px;
+    }
+
+    .error-state p {
+        font-size: 14px;
+    }
+}
+
+/* 접근성 개선 */
+@media (prefers-reduced-motion: reduce) {
+    .step,
+    .vote-item,
+    .table-row,
+    .bill-title button {
+        animation: none !important;
+        transition: none !important;
+    }
+    
+    .bill-title button:hover {
+        transform: translateY(-50%) !important;
+    }
+}
+
+/* 고대비 모드 지원 */
+@media (prefers-contrast: high) {
+    .step.active {
+        background-color: #000080;
+        border-color: #000080;
+    }
+    
+    .vote-item {
+        border-width: 3px;
+    }
+    
+    .error-state {
+        border-width: 2px;
+    }
+    
+    .bill-title button {
+        border-width: 2px !important;
+    }
+}
+
+/* 다크모드 대응 (시스템 설정 감지) */
+@media (prefers-color-scheme: dark) {
+    .vote-notice {
+        background-color: #2d3748;
+        border-color: #4a5568;
+    }
+    
+    .notice-text p:last-child {
+        color: #a0aec0;
+    }
+}

@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>백일하 - 상세퍼센트</title>
+    <!-- 외부 스타일시트 연결 -->
+    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="percent.css">
+</head>
+<body>
+    <!-- 헤더 시작 -->
+    <header>
+        <a href="index.html" style="text-decoration: none; color: inherit;">
+            <div class="logo">
+                <img src="https://raw.githubusercontent.com/moody1317/osbasicproject_4/refs/heads/main/logo.png" alt="백일하 로고">
+            </div>
+        </a>
+    </header>
+    
+    <div class="sticky-nav-container">
+    <!-- 네비게이션 메뉴 시작 -->
+    <nav>
+        <ul>
+            <li class="has-submenu" data-submenu="party-submenu">
+                정당
+            </li>
+            <li class="has-submenu" data-submenu="member-submenu">
+                국회의원
+            </li>
+            <li class="has-submenu" data-submenu="activity-submenu">
+                의정 활동
+            </li>
+            <li class="has-submenu" data-submenu="etc-submenu">
+                기타
+            </li>
+        </ul>
+        
+        <!-- 정당 서브메뉴 -->
+        <div class="submenu-wrapper" id="party-submenu">
+            <div class="submenu-container">
+                <a href="rank_party.html" class="submenu-item">명예의 정당</a>
+                <a href="percent_party.html" class="submenu-item">정당 상세 퍼센트</a>
+                <a href="compare_party.html" class="submenu-item">정당 비교하기</a>
+            </div>
+        </div>
+        
+        <!-- 국회의원 서브메뉴 -->
+        <div class="submenu-wrapper" id="member-submenu">
+            <div class="submenu-container">
+                <a href="compare_member.html" class="submenu-item">국회의원 비교하기</a>
+                <a href="percent_member.html" class="submenu-item">국회의원 상세정보</a>
+                <a href="rank_member.html" class="submenu-item">명예의 의원</a>
+            </div>
+        </div>
+        
+        <!-- 의정 활동 서브메뉴 -->
+        <div class="submenu-wrapper" id="activity-submenu">
+            <div class="submenu-container">
+                <a href="petition.html" class="submenu-item">청원 현황</a>
+                <a href="meeting.html" class="submenu-item">본회의 현황</a>
+            </div>
+        </div>
+        
+        <!-- 기타 서브메뉴 -->
+        <div class="submenu-wrapper" id="etc-submenu">
+            <div class="submenu-container">
+                <a href="outpage.html" class="submenu-item">외부 사이트</a>
+                <a href="inquiry.html" class="submenu-item">도움말</a>
+                <a href="announcements.html" class="submenu-item">공지사항</a>
+            </div>
+        </div>
+    </nav>
+    </div>
+    
+    <main class="main">
+        <h1 class="title">상세 퍼센트</h1>
+        
+        <!-- API 연결 상태 표시 -->
+        <div class="api-status-bar" id="apiStatusBar">
+            <div class="api-status-item">
+                <span class="status-indicator" id="apiStatusIndicator"></span>
+                <span class="status-text" id="apiStatusText">API 연결 확인 중...</span>
+            </div>
+            <div class="api-actions">
+                <button class="api-test-btn" id="apiTestBtn">🔍 연결 테스트</button>
+                <button class="api-apply-btn" id="apiApplyBtn" disabled>🚀 서버 적용</button>
+            </div>
+        </div>
+        
+        <!-- 컨트롤 영역 -->
+        <div class="control-wrapper">
+            <div class="reset-wrapper">
+                <button class="reset-button" id="resetButton">🔄 초기화</button>
+            </div>
+            <div class="auto-save-indicator" id="autoSaveIndicator">
+                <span class="save-status" id="saveStatus">💾 자동 저장됨</span>
+                <span class="last-updated" id="lastUpdated"></span>
+            </div>
+        </div>
+        
+        <!-- 백업 및 복원 섹션 -->
+        <div class="backup-section">
+            <div class="backup-controls">
+                <button class="backup-btn" id="exportBtn">📤 설정 내보내기</button>
+                <input type="file" id="importFile" accept=".json" style="display: none;">
+                <button class="backup-btn" id="importBtn">📥 설정 가져오기</button>
+            </div>
+        </div>
+        
+        <!-- 체크박스 그리드 -->
+        <div class="checkbox-grid">
+            <!-- 1행 -->
+            <div class="checkbox-item">
+                <div class="checkbox-header">
+                    <input type="checkbox" id="check1" class="checkbox-input" checked data-item="간사">
+                    <label for="check1" class="checkbox-label">간사</label>
+                </div>
+                <div class="checkbox-description">초기값: 3%</div>
+            </div>
+            <div class="checkbox-item">
+                <div class="checkbox-header">
+                    <input type="checkbox" id="check2" class="checkbox-input" checked data-item="무효표 및 기권">
+                    <label for="check2" class="checkbox-label">무효표 및 기권</label>
+                </div>
+                <div class="checkbox-description">초기값: 2%</div>
+            </div>
+            <div class="checkbox-item">
+                <div class="checkbox-header">
+                    <input type="checkbox" id="check3" class="checkbox-input" checked data-item="본회의 가결">
+                    <label for="check3" class="checkbox-label">본회의 가결</label>
+                </div>
+                <div class="checkbox-description">초기값: 40%</div>
+            </div>
+            <div class="checkbox-item">
+                <div class="checkbox-header">
+                    <input type="checkbox" id="check4" class="checkbox-input" checked data-item="위원장">
+                    <label for="check4" class="checkbox-label">위원장</label>
+                </div>
+                <div class="checkbox-description">초기값: 5%</div>
+            </div>
+            
+            <!-- 2행 -->
+            <div class="checkbox-item">
+                <div class="checkbox-header">
+                    <input type="checkbox" id="check5" class="checkbox-input" checked data-item="청원 소개">
+                    <label for="check5" class="checkbox-label">청원 소개</label>
+                </div>
+                <div class="checkbox-description">초기값: 8%</div>
+            </div>
+            <div class="checkbox-item">
+                <div class="checkbox-header">
+                    <input type="checkbox" id="check6" class="checkbox-input" checked data-item="청원 결과">
+                    <label for="check6" class="checkbox-label">청원 결과</label>
+                </div>
+                <div class="checkbox-description">초기값: 23%</div>
+            </div>
+            <div class="checkbox-item">
+                <div class="checkbox-header">
+                    <input type="checkbox" id="check7" class="checkbox-input" checked data-item="출석">
+                    <label for="check7" class="checkbox-label">출석</label>
+                </div>
+                <div class="checkbox-description">초기값: 8%</div>
+            </div>
+            <div class="checkbox-item">
+                <div class="checkbox-header">
+                    <input type="checkbox" id="check8" class="checkbox-input" checked data-item="투표 결과 일치">
+                    <label for="check8" class="checkbox-label">투표 결과 일치</label>
+                </div>
+                <div class="checkbox-description">초기값: 7%</div>
+            </div>
+
+            <!-- 3행 -->
+            <div class="checkbox-item">
+                <div class="checkbox-header">
+                    <input type="checkbox" id="check9" class="checkbox-input" checked data-item="투표 결과 불일치">
+                    <label for="check9" class="checkbox-label">투표 결과 불일치</label>
+                </div>
+                <div class="checkbox-description">초기값: 4%</div>
+            </div>
+        </div>
+        
+        <!-- 퍼센트 테이블 -->
+        <div class="percent-grid">
+            <div class="percent-header">
+                <div class="percent-header-item">항목</div>
+                <div class="percent-header-item">비율</div>
+                <div class="percent-header-item">항목</div>
+                <div class="percent-header-item">비율</div>
+            </div>
+            <div class="percent-row">
+                <div class="percent-item">
+                    <span class="percent-label">간사</span>
+                    <input type="text" class="percent-input" value="3%" placeholder="비율 입력" data-item="간사">
+                </div>
+                <div class="percent-item">
+                    <span class="percent-label">무효표 및 기권</span>
+                    <input type="text" class="percent-input" value="2%" placeholder="비율 입력" data-item="무효표 및 기권">
+                </div>
+            </div>
+            <div class="percent-row">
+                <div class="percent-item">
+                    <span class="percent-label">본회의 가결</span>
+                    <input type="text" class="percent-input" value="40%" placeholder="비율 입력" data-item="본회의 가결">
+                </div>
+                <div class="percent-item">
+                    <span class="percent-label">위원장</span>
+                    <input type="text" class="percent-input" value="5%" placeholder="비율 입력" data-item="위원장">
+                </div>
+            </div>
+            <div class="percent-row">
+                <div class="percent-item">
+                    <span class="percent-label">청원 소개</span>
+                    <input type="text" class="percent-input" value="8%" placeholder="비율 입력" data-item="청원 소개">
+                </div>
+                <div class="percent-item">
+                    <span class="percent-label">청원 결과</span>
+                    <input type="text" class="percent-input" value="23%" placeholder="비율 입력" data-item="청원 결과">
+                </div>
+            </div>
+            <div class="percent-row">
+                <div class="percent-item">
+                    <span class="percent-label">출석</span>
+                    <input type="text" class="percent-input" value="8%" placeholder="비율 입력" data-item="출석">
+                </div>
+                <div class="percent-item">
+                    <span class="percent-label">투표 결과 일치</span>
+                    <input type="text" class="percent-input" value="7%" placeholder="비율 입력" data-item="투표 결과 일치">
+                </div>
+            </div>
+            <div class="percent-row">
+                <div class="percent-item">
+                    <span class="percent-label">투표 결과 불일치</span>
+                    <input type="text" class="percent-input" value="4%" placeholder="비율 입력" data-item="투표 결과 불일치">
+                </div>
+                <div class="percent-item">
+                    <span class="percent-label"></span>
+                </div>
+            </div>
+        </div>
+    </main>
+    
+    <!-- 챗봇 아이콘 -->
+    <div class="robot-icon">
+        <img src="https://raw.githubusercontent.com/moody1317/osbasicproject_4/946d8f24f9c780853862670da370ad174c3def6c/chat.png" alt="챗봇 아이콘">
+    </div>
+    
+    <!-- 챗봇 모달 -->
+    <div class="chatbot-modal" id="chatbotModal">
+        <div class="chatbot-container">
+            <div class="chatbot-header">
+                <div class="date" id="chatbotDate"></div>
+                <button class="close-button">&times;</button>
+            </div>
+            <div class="chatbot-messages" id="chatbotMessages">
+                <!-- 메시지가 여기에 추가됩니다 -->
+            </div>
+            
+            <div class="suggestion-buttons">
+                <button class="suggestion-btn">퍼센트 설정 도움말</button>
+                <button class="suggestion-btn">가중치 계산 방법</button>
+                <button class="suggestion-btn">설정 저장/불러오기</button>
+                <button class="suggestion-btn">초기값 안내</button>
+            </div>
+            
+            <div class="chatbot-input">
+                <input type="text" id="messageInput" placeholder="퍼센트 설정에 대해 궁금한 점을 입력해주세요">
+                <button class="send-button">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M22 2L11 13" stroke="#AAAAAA" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                        <path d="M22 2L15 22L11 13L2 9L22 2Z" stroke="#AAAAAA" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                </button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- 외부 스크립트 연결 -->
+    <script src="global_sync.js"></script>
+    <script src="scripts.js"></script>
+    <script src="percent.js"></script>
+
+    <footer style="margin-top: 40px; padding: 20px; font-size: 12px; color: gray; text-align: center; border-top: 1px solid #ddd; background-color: #f9f9f9;">
+        본 웹사이트는 충북대학교의 오픈소스 기초 프로젝트 과제를 위해 제작된 비상업적 프로젝트입니다.<br>
+        사용된 의원 정보 및 이미지는 열린국회정보 API를 통해 수집되었으며, 실제 정당 및 국회의원과 무관한 가상 시각화입니다.
+    </footer>
+
+</body>
+</html>

@@ -1,0 +1,707 @@
+/* === API 상태 표시 === */
+.api-status-indicator {
+    background-color: var(--side);
+    border-bottom: 1px solid var(--side2);
+    padding: 8px 0;
+    text-align: center;
+    font-size: 13px;
+}
+
+.status-message {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    max-width: 1000px;
+    margin: 0 auto;
+}
+
+.status-icon {
+    font-size: 16px;
+    animation: pulse 1.5s infinite;
+}
+
+.status-icon.connected {
+    color: #4caf50;
+    animation: none;
+}
+
+.status-icon.error {
+    color: #f44336;
+    animation: none;
+}
+
+@keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.5; }
+}
+
+.status-text {
+    color: var(--string);
+    font-weight: 500;
+}
+
+/* === 검색 영역 === */
+.search-container {
+    background-color: white;
+    padding: 20px 0;
+    border-bottom: 1px solid #e0e0e0;
+}
+
+.search-bar {
+    display: flex;
+    max-width: 800px;
+    margin: 0 auto;
+    border: 1px solid #e0e0e0;
+    border-radius: 5px;
+    overflow: hidden;
+    background-color: #f2f7ff;
+}
+
+.search-filter {
+    display: flex;
+    align-items: center;
+    padding: 0 15px;
+    border-right: 1px solid #e0e0e0;
+}
+
+.search-filter select {
+    border: none;
+    background: transparent;
+    font-size: 16px;
+    padding: 10px 5px;
+    width: 120px;
+    appearance: none;
+    -webkit-appearance: none;
+    background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
+    background-repeat: no-repeat;
+    background-position: right 0px center;
+    background-size: 1em;
+    cursor: pointer;
+}
+
+.search-filter select:focus {
+    outline: none;
+}
+
+.search-input {
+    flex-grow: 1;
+    display: flex;
+    position: relative; /* 검색 결과 드롭다운 위치를 위해 추가 */
+}
+
+.search-input input {
+    width: 100%;
+    padding: 12px 15px;
+    border: none;
+    font-size: 16px;
+    background-color: #f2f7ff;
+}
+
+.search-input input:focus {
+    outline: none;
+    background-color: #e8f2ff;
+}
+
+.search-button {
+    padding: 0 20px;
+    background-color: #f2f7ff;
+    border: none;
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+
+.search-button:hover {
+    background-color: #e8f2ff;
+}
+
+.search-button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.search-button svg {
+    width: 20px;
+    height: 20px;
+}
+
+/* === 검색 결과 드롭다운 === */
+.search-results {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    background: white;
+    border: 1px solid #ddd;
+    border-top: none;
+    border-radius: 0 0 5px 5px;
+    max-height: 300px;
+    overflow-y: auto;
+    z-index: 1000;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+}
+
+.search-result-item {
+    padding: 12px 15px;
+    cursor: pointer;
+    border-bottom: 1px solid #eee;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    transition: background-color 0.2s;
+}
+
+.search-result-item:hover {
+    background-color: #f5f5f5;
+}
+
+.search-result-item:last-child {
+    border-bottom: none;
+}
+
+.search-result-photo {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    object-fit: cover;
+    background-color: #e0e0e0;
+    flex-shrink: 0;
+}
+
+.search-result-info {
+    flex: 1;
+}
+
+.search-result-name {
+    font-weight: 500;
+    font-size: 14px;
+    color: var(--string);
+    margin-bottom: 2px;
+}
+
+.search-result-details {
+    font-size: 12px;
+    color: var(--example);
+}
+
+.no-results {
+    padding: 15px;
+    text-align: center;
+    color: var(--example);
+    font-size: 14px;
+}
+
+/* === 국회의원 프로필 === */
+.member-profile {
+    display: flex;
+    margin: 30px auto;
+    max-width: 1000px;
+    background-color: white;
+    gap: 30px;
+}
+
+.member-left-column {
+    width: 250px;
+    flex-shrink: 0;
+}
+
+.member-photo {
+    width: 250px;
+    height: 330px;
+    background-color: #e0e0e0;
+    border-radius: 8px;
+    overflow: hidden;
+    position: relative;
+}
+
+.member-photo img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.photo-placeholder {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    height: 100%;
+    color: #999;
+    font-size: 14px;
+}
+
+.member-name-card {
+    margin-top: 15px;
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+.member-name {
+    font-size: 35px;
+    font-weight: 700;
+    color: #333;
+    transition: color 0.3s ease;
+}
+
+.member-party {
+    font-size: 20px;
+    color: #666;
+    transition: color 0.3s ease;
+}
+
+.member-district {
+    font-size: 16px;
+    color: var(--example);
+    margin-top: 5px;
+}
+
+.home-icon {
+    text-align: center;
+}
+
+.home-icon a {
+    display: inline-block;
+    text-decoration: none;
+}
+
+.home-icon svg {
+    width: 24px;
+    height: 24px;
+    color: var(--example);
+    cursor: pointer;
+    transition: color 0.2s;
+    vertical-align: middle;
+    position: relative;
+    top: 2px;
+}
+
+.home-icon a:hover svg {
+    color: var(--light-blue);
+}
+
+.home-icon a.disabled {
+    cursor: not-allowed;
+    opacity: 0.5;
+}
+
+.home-icon a.disabled:hover svg {
+    color: var(--example);
+}
+
+.member-right-column {
+    flex-grow: 1;
+}
+
+.ranking {
+    font-size: 18px;
+    margin-bottom: 15px;
+    color: #333;
+    transition: all 0.3s ease;
+}
+
+.ranking strong {
+    color: #69c7ee;
+    font-weight: 700;
+}
+
+.ranking.loading {
+    color: var(--example);
+}
+
+.stat-item {
+    margin-bottom: 15px;
+    font-size: 16px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 0;
+    border-bottom: 1px solid #f0f0f0;
+    transition: all 0.3s ease;
+}
+
+.stat-item:last-child {
+    border-bottom: none;
+}
+
+.stat-value {
+    font-weight: 600;
+    transition: color 0.3s ease;
+}
+
+.stat-value.loading {
+    color: var(--example);
+    font-style: italic;
+}
+
+.stat-value.good {
+    color: #4caf50;
+}
+
+.stat-value.warning {
+    color: #ff9800;
+}
+
+.stat-value.bad {
+    color: #f44336;
+}
+
+/* === 로딩 애니메이션 === */
+.loading-spinner {
+    display: inline-block;
+    width: 16px;
+    height: 16px;
+    border: 2px solid var(--side2);
+    border-radius: 50%;
+    border-top-color: var(--light-blue);
+    animation: spin 1s ease-in-out infinite;
+    margin-right: 5px;
+}
+
+@keyframes spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+/* === 알림 및 에러 메시지 === */
+.notification {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    padding: 15px 20px;
+    border-radius: 8px;
+    font-size: 14px;
+    z-index: 2000;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+    transform: translateX(100%);
+    transition: transform 0.3s ease;
+    max-width: 350px;
+}
+
+.notification.show {
+    transform: translateX(0);
+}
+
+.notification.success {
+    background-color: #4caf50;
+    color: white;
+}
+
+.notification.error {
+    background-color: #f44336;
+    color: white;
+}
+
+.notification.warning {
+    background-color: #ff9800;
+    color: white;
+}
+
+.notification.info {
+    background-color: #2196f3;
+    color: white;
+}
+
+/* === 반응형 디자인 === */
+@media screen and (max-width: 1024px) {
+    .search-container {
+        padding: 18px 0;
+    }
+
+    .search-bar {
+        max-width: 700px;
+        margin: 0 15px;
+    }
+
+    .member-profile {
+        max-width: 900px;
+        gap: 25px;
+        margin: 25px auto;
+        padding: 0 15px;
+    }
+
+    .member-left-column {
+        width: 220px;
+    }
+
+    .member-photo {
+        width: 220px;
+        height: 290px;
+    }
+
+    .member-name {
+        font-size: 32px;
+    }
+
+    .member-party {
+        font-size: 18px;
+    }
+
+    .ranking {
+        font-size: 17px;
+    }
+
+    .stat-item {
+        font-size: 15px;
+    }
+}
+
+@media screen and (max-width: 768px) {
+    .search-container {
+        padding: 15px 0;
+    }
+
+    .search-bar {
+        margin: 0 15px;
+    }
+    
+    .search-filter {
+        border-right: 1px solid #e0e0e0;
+        padding: 0px 12px;
+    }
+
+    .search-filter select {
+        font-size: 14px;
+        width: 100px;
+        padding: 8px 5px;
+    }
+
+    .search-input input {
+        padding: 10px 12px;
+        font-size: 14px;
+    }
+
+    .search-button {
+        padding: 0 15px;
+    }
+
+    .search-button svg {
+        width: 18px;
+        height: 18px;
+    }
+
+    .search-result-item {
+        padding: 10px 12px;
+    }
+
+    .search-result-photo {
+        width: 35px;
+        height: 35px;
+    }
+    
+    .member-profile {
+        flex-direction: column;
+        align-items: center;
+        text-align: center;
+        margin: 20px auto;
+        gap: 20px;
+        padding: 0 15px;
+    }
+    
+    .member-left-column {
+        width: 100%;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+    }
+    
+    .member-photo {
+        width: 200px;
+        height: 260px;
+    }
+    
+    .member-name-card {
+        justify-content: center;
+        margin-top: 12px;
+    }
+
+    .member-name {
+        font-size: 30px;
+    }
+
+    .member-party {
+        font-size: 17px;
+    }
+    
+    .member-right-column {
+        width: 100%;
+        max-width: 400px;
+    }
+
+    .ranking {
+        font-size: 16px;
+        text-align: center;
+    }
+
+    .stat-item {
+        font-size: 14px;
+        padding: 8px 0;
+    }
+
+    .notification {
+        max-width: 300px;
+        font-size: 13px;
+    }
+}
+
+@media screen and (max-width: 576px) {
+    .search-container {
+        padding: 12px 0;
+    }    
+
+    .search-bar {
+        margin: 0 10px;
+        min-height: 44px;
+        align-items: stretch;
+    }
+
+    .search-filter {
+        padding: 0px 10px;
+        min-width: 90px;
+        flex-shrink: 0;
+    }
+
+    .search-filter select {
+        font-size: 14px;
+        width: 100%;
+        padding: 12px 5px;
+        min-width: 70px;
+    }
+
+    .search-input {
+        flex: 1;
+    }
+
+    .search-input input {
+        padding: 12px 10px;
+        font-size: 14px;
+        height: 100%;
+        box-sizing: border-box;
+    }
+
+    .search-button {
+        padding: 0 15px;
+        min-width: 50px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .search-button svg {
+        width: 18px;
+        height: 18px;
+    }
+
+    .search-result-item {
+        padding: 8px 10px;
+        gap: 8px;
+    }
+
+    .search-result-photo {
+        width: 30px;
+        height: 30px;
+    }
+
+    .search-result-name {
+        font-size: 13px;
+    }
+
+    .search-result-details {
+        font-size: 11px;
+    }
+
+    .member-profile {
+        margin: 15px auto;
+        padding: 0 10px;
+    }
+
+    .member-photo {
+        width: 180px;
+        height: 230px;
+    }
+
+    .photo-placeholder {
+        font-size: 13px;
+    }
+
+    .member-name {
+        font-size: 26px;
+    }
+    
+    .member-party {
+        font-size: 16px;
+    }
+
+    .home-icon svg {
+        width: 20px;
+        height: 20px;
+    }
+
+    .ranking {
+        font-size: 15px;
+    }
+
+    .stat-item {
+        font-size: 13px;
+        padding: 6px 0;
+    }
+
+    .member-right-column {
+        max-width: 350px;
+    }
+
+    .notification {
+        max-width: 280px;
+        font-size: 12px;
+        padding: 12px 16px;
+    }
+
+    .api-status-indicator {
+        padding: 6px 0;
+        font-size: 12px;
+    }
+}
+
+/* === 접근성 개선 === */
+@media (prefers-reduced-motion: reduce) {
+    .member-name,
+    .member-party,
+    .ranking,
+    .stat-item,
+    .stat-value,
+    .notification,
+    .search-result-item {
+        transition: none;
+    }
+    
+    .loading-spinner,
+    .status-icon {
+        animation: none;
+    }
+}
+
+/* === 고대비 모드 지원 === */
+@media (prefers-contrast: high) {
+    .search-bar,
+    .member-photo,
+    .search-results {
+        border-width: 2px;
+        border-color: var(--string);
+    }
+    
+    .search-result-item:hover {
+        background-color: var(--main1);
+    }
+    
+    .stat-value.good {
+        color: #2e7d32;
+        font-weight: 700;
+    }
+    
+    .stat-value.bad {
+        color: #d32f2f;
+        font-weight: 700;
+    }
+}
