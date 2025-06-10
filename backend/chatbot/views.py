@@ -53,6 +53,15 @@ def normalize_keywords(user_input):
 # DB에서 해당 키워드 관련 데이터만 추출
 def get_filtered_data(user_input):
     data = {}
+
+     # 🔍 경로 확인 로그 추가
+    print(f"✅ [DEBUG] RANKING_DB 경로: {RANKING_DB}")
+    print(f"✅ [DEBUG] RANKING_DB 존재함?: {os.path.exists(RANKING_DB)}")
+
+    print(f"✅ [DEBUG] RANKING_MEMBER 경로: {RANKING_MEMBER}")
+    print(f"✅ [DEBUG] RANKING_MEMBER 존재함?: {os.path.exists(RANKING_MEMBER)}")
+
+
     try:
         if user_input.strip() == "사용법":
             return JsonResponse({
@@ -164,7 +173,7 @@ def chatbot_api(request):
             }
 
             payload = {
-                "model": "whisper-large-v3",
+                "model": "meta-llama/llama-4-scout-17b-16e-instruct",
                 "messages": [
                     {"role": "system", "content": system_prompt},
                     {"role": "user", "content": prompt}
