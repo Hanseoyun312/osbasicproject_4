@@ -164,7 +164,7 @@ def chatbot_api(request):
             }
 
             payload = {
-                "model": "meta-llama/llama-4-scout-17b-16e-instruct",
+                "model": "whisper-large-v3",
                 "messages": [
                     {"role": "system", "content": system_prompt},
                     {"role": "user", "content": prompt}
