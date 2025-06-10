@@ -105,6 +105,7 @@ def get_filtered_data(user_input):
 
 @csrf_exempt
 def chatbot_api(request):
+    print("🔥 chatbot_api에 진입함!") 
     if request.method == "POST":
         try:
             data = json.loads(request.body)
