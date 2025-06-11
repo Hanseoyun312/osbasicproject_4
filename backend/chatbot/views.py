@@ -14,19 +14,19 @@ GROQ_API_KEY = os.getenv("GROQ_API_KEY")
 
 # DB 파일 경로
 RANKING_DB = os.path.join(os.path.dirname(__file__), '..', 'ranking_parties.db')
-RANKING_MEMBER = os.path.join(os.path.dirname(__file__), '..', 'ranking_member.db')
+RANKING_MEMBERS = os.path.join(os.path.dirname(__file__), '..', 'ranking_members.db')
 
 # 사용자 질문에서 키워드 추출 및 필드 판별
 KEYWORD_MAPPING = {
-    "총점": ("ranking_member", ["HG_NM", "POLY_NM", "총점"]),
-    "출석": ("ranking_member", ["HG_NM", "POLY_NM", "출석"]),
-    "법안": ("ranking_member", ["HG_NM", "POLY_NM", "법안가결"]),
-    "청원": ("ranking_member", ["HG_NM", "POLY_NM", "청원제시", "청원결과"]),
-    "위원회": ("ranking_member", ["HG_NM", "POLY_NM", "위원회"]),
-    "기권": ("ranking_member", ["HG_NM", "POLY_NM", "기권_무효"]),
-    "무효": ("ranking_member", ["HG_NM", "POLY_NM", "기권_무효"]),
-    "일치": ("ranking_member", ["HG_NM", "POLY_NM", "표결일치"]),
-    "불일치": ("ranking_member", ["HG_NM", "POLY_NM", "표결불일치"]),
+    "총점": ("ranking_members", ["HG_NM", "POLY_NM", "총점"]),
+    "출석": ("ranking_members", ["HG_NM", "POLY_NM", "출석"]),
+    "법안": ("ranking_members", ["HG_NM", "POLY_NM", "법안가결"]),
+    "청원": ("ranking_members", ["HG_NM", "POLY_NM", "청원제시", "청원결과"]),
+    "위원회": ("ranking_members", ["HG_NM", "POLY_NM", "위원회"]),
+    "기권": ("ranking_members", ["HG_NM", "POLY_NM", "기권_무효"]),
+    "무효": ("ranking_members", ["HG_NM", "POLY_NM", "기권_무효"]),
+    "일치": ("ranking_members", ["HG_NM", "POLY_NM", "표결일치"]),
+    "불일치": ("ranking_members", ["HG_NM", "POLY_NM", "표결불일치"]),
     "정당 요약": ("party_score", ["정당", "평균실적", "의원수", "가중점수"]),
     "정당 통계": ("party_statistics_kr", ["정당"]),
 }
@@ -58,11 +58,11 @@ def get_filtered_data(user_input):
     print(f"✅ [DEBUG] RANKING_DB 경로: {RANKING_DB}")
     print(f"✅ [DEBUG] RANKING_DB 존재함?: {os.path.exists(RANKING_DB)}")
 
-    print(f"✅ [DEBUG] RANKING_MEMBER 경로: {RANKING_MEMBER}")
-    print(f"✅ [DEBUG] RANKING_MEMBER 존재함?: {os.path.exists(RANKING_MEMBER)}")
+    print(f"✅ [DEBUG] RANKING_MEMBER 경로: {RANKING_MEMBERS}")
+    print(f"✅ [DEBUG] RANKING_MEMBER 존재함?: {os.path.exists(RANKING_MEMBERS)}")
 
 
-    try:
+    try
         if user_input.strip() == "사용법":
             return JsonResponse({
                 "response": (
@@ -88,7 +88,7 @@ def get_filtered_data(user_input):
         for keyword, (table, columns) in KEYWORD_MAPPING.items():
             if keyword in user_input:
                 if table == "performance_score":
-                    with sqlite3.connect(RANKING_MEMBER) as conn:
+                    with sqlite3.connect(RANKING_MEMBERS) as conn:
                         conn.row_factory = sqlite3.Row
                         cur = conn.cursor()
                         cur.execute(f"SELECT {', '.join(columns)} FROM {table}")
