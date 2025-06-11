@@ -14,7 +14,7 @@ GROQ_API_KEY = os.getenv("GROQ_API_KEY")
 
 # DB 파일 경로
 RANKING_DB = os.path.join(os.path.dirname(__file__), '..', 'ranking_parties.db')
-RANKING_MEMBERS = os.path.join(os.path.dirname(__file__), '..', 'ranking_member.db')
+RANKING_MEMBERS = os.path.join(os.path.dirname(__file__), '..', 'ranking_members.db')
 
 # 사용자 질문에서 키워드 추출 및 필드 판별
 KEYWORD_MAPPING = {
