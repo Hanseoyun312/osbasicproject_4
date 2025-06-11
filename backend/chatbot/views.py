@@ -14,7 +14,7 @@ GROQ_API_KEY = os.getenv("GROQ_API_KEY")
 
 # DB 파일 경로
 RANKING_DB = os.path.join(os.path.dirname(__file__), '..', 'ranking_parties.db')
-RANKING_MEMBERS = os.path.join(os.path.dirname(__file__), '..', 'ranking_members.db')
+RANKING_MEMBERS = os.path.join(os.path.dirname(__file__), '..', 'ranking_member.db')
 
 # 사용자 질문에서 키워드 추출 및 필드 판별
 KEYWORD_MAPPING = {
@@ -58,11 +58,11 @@ def get_filtered_data(user_input):
     print(f"✅ [DEBUG] RANKING_DB 경로: {RANKING_DB}")
     print(f"✅ [DEBUG] RANKING_DB 존재함?: {os.path.exists(RANKING_DB)}")
 
-    print(f"✅ [DEBUG] RANKING_MEMBER 경로: {RANKING_MEMBERS}")
-    print(f"✅ [DEBUG] RANKING_MEMBER 존재함?: {os.path.exists(RANKING_MEMBERS)}")
+    print(f"✅ [DEBUG] RANKING_MEMBERS 경로: {RANKING_MEMBERS}")
+    print(f"✅ [DEBUG] RANKING_MEMBERS 존재함?: {os.path.exists(RANKING_MEMBERS)}")
 
 
-    try
+    try:
         if user_input.strip() == "사용법":
             return JsonResponse({
                 "response": (
